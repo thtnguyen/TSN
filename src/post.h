@@ -12,9 +12,9 @@ class post(string message)
     long creation_date;
     
   public:
-    std::string get_body();
-    long get_doc(); //date of creation
-    TSN::serial_number get_id();
+    std::string get_body(); //return the post message
+    long get_doc(); //return the date of creation
+    TSN::serial_number get_id(); //return the post's serial num
 };
 
 #endif
