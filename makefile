@@ -46,6 +46,6 @@ exe: ${IDL_GENERATED_H} ${IDL_GENERATED_CPP} ${COMMON_H} ${COMMON_CPP} src/main.
 #	g++ -o $@ ${CFLAGS} ${CXXFLAGS} $^ ${LIBS}
 
 clean:
-	-rm -f stalker
+	-rm -f exe
 	-rm -f ${IDL_GENERATED_H} ${IDL_GENERATED_CPP}
 	-rm -f ospl-error.log ospl-info.log
