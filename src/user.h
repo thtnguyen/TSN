@@ -24,6 +24,15 @@ class user(std::string fname, std::string lname, sequence<std::string> i)
    //method will look through post information stored on local file to find the request post serial number and 
   //create and return a response
 
+    //prompt user for post data and construct a post object to store in the vector
+    //will also write the post data into a save file
+    post::post create_post();
+
+    //will deal with incoming data appropriately, we need to decide what we'll do with them
+    void handle_inc_requests(TSN::request);
+    void handle_inc_responses(TSN::response);
+    void handle_inc_userinfo(TSN::user_information);
+
 };
 
 #endif
