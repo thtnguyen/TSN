@@ -8,25 +8,41 @@
 #include <boost/uuid/uuid_io.hpp>
 
 #include "DDSEntityManager.h"
-#include "ccpp_test.h"
+#include "ccpp_tsn.h"
 //#include "user.h"
 
-using namespace TSN;
 
-void background(char* name)
+void background(string first_name)
 {
-	MsgSeq msgList;
-	SampleInfoSeq infoSeq;
-	DDSEntityManager mgr;
+	TSN::requestSeq requestList;
+  TSN::responseSeq responseList;
+  TSN::user_informationSeq userinfoList;
 
-	mgr.createParticipant("TSN");
+	TSN::SampleInfoSeq infoSeq;
 
-    MsgTypeSupport_var mt = new MsgTypeSupport();
-    mgr.registerType(mt.in());
+	TSN::DDSEntityManager userinfo_mgr;
+  TSN::DDSEntityManager request_mgr;
+  TSN::DDSEntityManager response_mgr;  
 
-	char topic[] = "Topic";
-	mgr.createTopic(topic);
+	userinfo_mgr.createParticipant(first_name);
 
+  requestTypeSupport_var reqts = new requestTypeSupport();
+  responseTypeSupport_var respts = new reponseTypeSupport();
+  user_informationTypeSupport_var uits = new user_informationTypeSupport;
+
+  request_mgr.registerType(reqts.in());
+  response_mgr.registerType(respts.in());
+  userinfo_mgr.register(Type(uits.in());
+
+	char user_topic[] = "user_information";
+  char req_topic[] = "request";
+  char resp_topic[] = "response";
+	
+  userinfo_mgr.createTopic(user_topic);
+  request_mgr.createTopic(req_topic);
+  reponse_mgr.createTopic(resp_topic);
+
+  //CONTINUE IMPLEMENTING HERE
 	mgr.createSubscriber();
 	mgr.createReader();
 	DataReader_var dr = mgr.getReader();
@@ -36,9 +52,7 @@ void background(char* name)
 
   std::cout << "=== [Subscriber] Ready ..." << std::endl;
 
-  //bool closed = false;
   ReturnCode_t status =  - 1;
-  //int count = 0;
 	
 	while(1)
 	{
@@ -47,13 +61,11 @@ void background(char* name)
     checkStatus(status, "msgDataReader::take");
     for (DDS::ULong j = 0; j < msgList.length(); j++)
     {
-			//std::cout << "my name is " << name << " and sender name is " << msgList[0].name << std::endl;
 			if(strcmp(msgList[j].name, name) != 0)
 			{
       std::cout << "=== [Subscriber] message received :" << std::endl;
       std::cout << "    Name  : " << msgList[j].name << std::endl;
       std::cout << "    Message : \"" << msgList[j].message << "\"" << std::endl;
-      //closed = true;
 			}
     }
     status = MsgReader->return_loan(msgList, infoSeq);
@@ -70,21 +82,33 @@ void background(char* name)
 
 int main (int argc, char* argv[])
 {
-  std::cout << "Welcome to The Social Network." << std::endl;
 
-	std::cout << "Enter name: " << std::endl;
-	char name[100];
-	std::cin >> name;
+  boost::uuids::uuid uuid = boost::uuids::random_generator()();
+  std::cout << "Welcome to The Social Network." << std::endl;
+  std::cout << "Your UUID is: " << uuid << std::endl;
+
+	std::cout << "Enter your first name: " << std::endl;
+	string first_name<70>;
+	std::cin >> first_name;
 	std::cin.ignore();
 
-	std::thread BG (background, name);
+  std::cout << "Enter your last name: " << std::endl;
+	string last_name<70>;
+	std::cin >> last_name;
+	std::cin.ignore();
+
+	std::thread BG (background, first_name);
 	//user this_user = load_user_data(".tsn");
 
 	//code to publish startup info goes here
 
-	DDSEntityManager mgr;
-	mgr.createParticipant("TSN");
+	TSN::DDSEntityManager userinfo_mgr;
+  TSN::DDSEntityManager request_mgr;
+  TSN::DDSEntityManager response_mgr;
 
+	mgr.createParticipant(first_name);
+
+  //CHANGE IMPLMENTATION HERE!!!
 	MsgTypeSupport_var mt = new MsgTypeSupport();
 	mgr.registerType(mt.in());
 
@@ -102,7 +126,6 @@ int main (int argc, char* argv[])
 
 	while(1)
 	{
-		std::cin.ignore();
 		std::cin >> choice;
 		if(choice == 1)
 		{
