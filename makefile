@@ -14,22 +14,22 @@ all: exe
 
 
 IDL_GENERATED_H= \
-                 ccpp_test.h \
-                 testDcps.h \
-                 testDcps_impl.h \
-                 test.h \
-                 testSplDcps.h 
+                 ccpp_tsn.h \
+                 tsnDcps.h \
+                 tsnDcps_impl.h \
+                 tsn.h \
+                 tsnSplDcps.h 
 
 IDL_GENERATED_CPP=\
-                 test.cpp \
-                 testDcps.cpp \
-                 testDcps_impl.cpp \
-                 testSplDcps.cpp
+                 tsn.cpp \
+                 tsnDcps.cpp \
+                 tsnDcps_impl.cpp \
+                 tsnSplDcps.cpp
 
 IDL_GENERATED=${IDL_GENERATED_H} ${IDL_GENERATED_CPP}
 
 ${IDL_GENERATED}: idl/test.idl
-	${OSPL_HOME}/bin/idlpp -l cpp idl/test.idl
+	${OSPL_HOME}/bin/idlpp -l cpp idl/tsn.idl
 
 COMMON_CPP= src/CheckStatus.cpp src/DDSEntityManager.cpp 
 
