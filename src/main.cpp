@@ -105,7 +105,7 @@ void background(string fname)
           std::cout << " ";
        }
        std::cout << std::endl;
-    }
+    }*/
     request_status = requestReader->return_loan(requestList, infoSeq);
     checkStatus(request_status, "requestDataReader::return_loan");
     sleep(1);
