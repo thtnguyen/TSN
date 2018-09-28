@@ -128,10 +128,9 @@ void publishUserInfo(user current_user)
   char userinfo_topic[] = "user_information";
   userinfo_mgr.createTopic(userinfo_topic);
 
-  userinfo_mgr.createWriter(false);
-
   userinfo_mgr.createPublisher();
   userinfo_mgr.createWriter(false);
+
 
   DDS::DataWriter_var dw = userinfo_mgr.getWriter();
   TSN::user_informationDataWriter_var userinfoWriter = TSN::user_informationDataWriter::_narrow(dw.in());
