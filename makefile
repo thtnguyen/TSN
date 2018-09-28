@@ -28,16 +28,18 @@ IDL_GENERATED_CPP=\
 
 IDL_GENERATED=${IDL_GENERATED_H} ${IDL_GENERATED_CPP}
 
+DEBUG= -g
+
 ${IDL_GENERATED}: idl/tsn.idl
 	${OSPL_HOME}/bin/idlpp -l cpp idl/tsn.idl
 
-COMMON_CPP= src/CheckStatus.cpp src/DDSEntityManager.cpp 
+COMMON_CPP= src/CheckStatus.cpp src/DDSEntityManager.cpp src/user.cpp
 
-COMMON_H= src/CheckStatus.h src/DDSEntityManager.h 
+COMMON_H= src/CheckStatus.h src/DDSEntityManager.h src/user.h src/post.h
 
 
 exe: ${IDL_GENERATED_H} ${IDL_GENERATED_CPP} ${COMMON_H} ${COMMON_CPP} src/main.cpp
-	g++ -o $@ ${CFLAGS} ${CXXFLAGS} $^ ${LIBS}
+	g++ -o $@ ${CFLAGS} ${CXXFLAGS} ${DEBUG} $^ ${LIBS}
 
 #Dealer: ${IDL_GENERATED_H} ${IDL_GENERATED_CPP} src/Dealer.cpp ${DEALER_FILES} ${DEALER_H_FILES}  ${COMMON_H} ${COMMON_CPP}
 #	g++ -o $@ ${CFLAGS} ${CXXFLAGS} $^ ${LIBS}
