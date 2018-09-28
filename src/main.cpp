@@ -3,7 +3,7 @@
 #include <fstream>
 #include <thread>
 #include <cstring>
-
+#include <sys/time.h>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -70,7 +70,7 @@ void background(string fname)
 
   std::cout << "=== [Subscriber] Ready ..." << std::endl;
 
-  ReturnCode_t status =  - 1;
+  ReturnCode_t status = -1;
 
   while(1)
   {
@@ -84,11 +84,18 @@ void background(string fname)
        std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
        std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
 		}
-    sleep(2);
-  }			
-
     status = userReader->return_loan(userinfoList, infoSeq);
     checkStatus(status, "user_informationDataReader::return_loan");
+    sleep(1);
+
+    status = requestReader->take(requestList, infoSeq, LENGTH_UNLIMITED,
+     ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+     checkStatus(status, "requestInformationDataReader::take");
+
+    //if(requestList.length() > 0)
+
+
+  }			
 
   userinfo_mgr.deleteReader();
   userinfo_mgr.deleteTopic();
@@ -111,11 +118,11 @@ void printMenu()
 
   std::cout << "Select what you want to do:" << std::endl << std::endl;
   std::cout << "(1) Recieve Messages - TEMPORARILY DISABLED" << std::endl;
-  std::cout << "(2) Publish Messages - TEMPORARILY DISABLED" << std::endl;
+  std::cout << "(2) Add A Post" << std::endl;
   std::cout << "Type any other key to Exit" << std::endl;
 }
 
-void publishUserInfo(user current_user)
+void publishUserInfo(user &current_user)
 {
 
   //initializing data manager for user information
@@ -150,13 +157,39 @@ void publishUserInfo(user current_user)
   ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
   checkStatus(status, "user_informationDataWriter::write");
 
-
   //deleting the data manager
   userinfo_mgr.deleteWriter();
   userinfo_mgr.deletePublisher();
   userinfo_mgr.deleteTopic();
 
   state = -1;
+  printMenu();
+}
+
+void createPost(user &current_user)
+{
+  TSN::serial_number sn = (TSN::serial_number) current_user.get_highest_pnum();
+
+  std::string message;
+  std::cout << "Enter a message for your post: " << std::endl;
+  getline(cin, message);
+  cin.ignore();
+
+  //getting epoch time in seconds
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  long date = tp.tv_sec;
+
+  post p = post(sn, message, date);
+
+  current_user.add_post(p);
+
+  //output for testing
+  std::vector<post>::iterator it = (current_user.posts).begin();
+  for(; it != (current_user.posts).end(); it++)
+    std::cout << it->get_sn() << " " << it->get_body() << endl;
+
+  state = -1;	
   printMenu();
 }
 
@@ -175,7 +208,7 @@ void viewMessages()
   printMenu();
 }
 
-void menu()
+void menu(user &current_user)
 {
   printMenu();
   state = -1;
@@ -198,8 +231,7 @@ void menu()
     }
     if(state == 2)
     {
-      //publishUserInfo()
-      //publishMessages(false);
+      createPost(current_user);
     }
 
     state = -1;
@@ -232,7 +264,7 @@ int main (int argc, char* argv[])
 
   std::vector<std::string> string_v;
   std::vector<post> post_v;
-  user current_user = user(first_name, last_name, 100, myuuid, string_v, post_v );
+  user current_user = user(first_name, last_name, 100, myuuid, string_v, post_v, 0);
 
   //get user info
   publishUserInfo(current_user);
@@ -240,7 +272,7 @@ int main (int argc, char* argv[])
   std::thread BG (background, first_name);
 
   //enter menu state
-  menu();
+  menu(current_user);
 
   std::cout << "end menu" << std::endl;
   exit(0);
