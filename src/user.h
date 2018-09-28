@@ -29,7 +29,6 @@ class user
   //create and return a response
 
     unsigned long long get_highest_pnum();
-
     void add_post(post p);
 
     //will deal with incoming data appropriately, we need to decide what we'll do with them

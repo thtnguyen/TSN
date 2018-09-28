@@ -9,7 +9,7 @@
 class post
 {
   private:
-    TSN::serial_number serial_num;
+    TSN::serial_number serial_num; //we will use (number of posts created + 1) for now
     std::string post_body; //message of post
     long creation_date;
     
@@ -18,6 +18,7 @@ class post
     std::string get_body(); //return the post message
     long get_doc(); //return the date of creation
     TSN::serial_number get_sn(); //return the post's serial num
+    
 };
 
 #endif

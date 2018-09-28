@@ -1,6 +1,7 @@
 #include "user.h"
 #include <cstring>
 
+#include<iostream> //debug info
 user::user(std::string fname, std::string lname, long dob, char *id, std::vector<std::string>& i, std::vector<post>& p, unsigned long long hp)
 {
     first_name = fname;
