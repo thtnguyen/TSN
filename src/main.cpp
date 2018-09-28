@@ -96,7 +96,7 @@ void background(string fname)
        std::cout << "=== [Subscriber] request received :" << std::endl;
        std::cout << "Requester UUID  : " << requestList[j].uuid  << std::endl;
 
-       for(int n = 0; n < 2; n++)
+      /* for(int n = 0; n < 2; n++)
        {
         std::cout << "Requested from user: " << requestList[j].user_requests[n].fulfiller_uuid << std::endl;
         std::cout << "Serial Nums of posts requested: ";
@@ -105,7 +105,7 @@ void background(string fname)
           std::cout << " ";
        }
        std::cout << std::endl;
-		}
+    }
     request_status = requestReader->return_loan(requestList, infoSeq);
     checkStatus(request_status, "requestDataReader::return_loan");
     sleep(1);
