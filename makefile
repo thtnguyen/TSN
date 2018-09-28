@@ -33,9 +33,9 @@ DEBUG= -g
 ${IDL_GENERATED}: idl/tsn.idl
 	${OSPL_HOME}/bin/idlpp -l cpp idl/tsn.idl
 
-COMMON_CPP= src/CheckStatus.cpp src/DDSEntityManager.cpp src/user.cpp src/post.cpp
+COMMON_CPP= src/CheckStatus.cpp src/DDSEntityManager.cpp src/user.cpp src/post.cpp src/io.cpp
 
-COMMON_H= src/CheckStatus.h src/DDSEntityManager.h src/user.h src/post.h
+COMMON_H= src/CheckStatus.h src/DDSEntityManager.h src/user.h src/post.h src/io.h
 
 
 exe: ${IDL_GENERATED_H} ${IDL_GENERATED_CPP} ${COMMON_H} ${COMMON_CPP} src/main.cpp
