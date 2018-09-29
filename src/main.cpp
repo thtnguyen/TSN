@@ -14,7 +14,7 @@ void printMenu()
 
   //user this_user = load_user_data(".tsn");
 
-  std::cout << "Select what you want to do:" << std::endl << std::endl;
+  std::cout << "\nSelect what you want to do:" << std::endl << std::endl;
   std::cout << "(1) Add A Post" << std::endl;
   std::cout << "(2) Publish A Request" << std::endl;
   std::cout << "(3) List Users" << std::endl;
@@ -45,21 +45,34 @@ void createPost(user &current_user)
 
   //implement writing post information to .tsn file here
 
-  state = -1;	
-  printMenu();
+  state = -1;
 }
 
-void menu(user &current_user)
+void print_online(std::vector<user>& on)
 {
-  printMenu();
+  std::vector<user>::iterator it;
+  for(it = on.begin(); it != on.end(); it++)
+  {
+    std::cout << "UUID  : " << it->uuid;
+    std::cout << "    Name : " << it->first_name << " " << it->last_name << std::endl;
+  }
   state = -1;
+}
 
+void menu(user &current_user, std::vector<user>& on)
+{
+  state = -1;
   while(state != 0)
   {
+    printMenu();
+    std::cout << "$ ";
     std::cin >> state;
+    std::cout << "choice was " << state << std::endl;
+    cin.ignore();
+
     if(state == 0)
     {
-      break;
+      exit(0);
     }		
     if(state == 1)
     {
@@ -71,7 +84,7 @@ void menu(user &current_user)
     }
     if(state == 3)
     {
-
+      print_online(on);
     }
     
   }
@@ -84,6 +97,9 @@ int main (int argc, char* argv[])
   user current_user = load_user_data(".tsn");
 
   
+  /*
+  test if load_user_data workd properly
+
   std::cout << current_user.uuid << std::endl;
   std::cout << current_user.first_name << std::endl;
   std::cout << current_user.last_name << std::endl;
@@ -98,17 +114,18 @@ int main (int argc, char* argv[])
     std::cout << it->get_body() << "\n" << std::endl; 
   }
 
-  exit(0);
+  exit(0);*/
 
-  publishUserInfo(current_user);
-  
-  std::thread UL (user_listener, std::ref(current_user));
-  std::thread UP (user_publisher, std::ref(current_user));
+  std::vector<user> online_users;
+  std::thread UP (user_publisher, std::ref(current_user));  
+  std::thread UL (user_listener, std::ref(current_user), std::ref(online_users));
+  std::thread ROL (refresh_online_list, std::ref(online_users));
   std::thread ReqL(request_listener, std::ref(current_user));
   std::thread RespL (response_listener, std::ref(current_user));
 
-  menu(current_user);
+  menu(current_user, online_users);
 
+  ROL.join();
   UL.join();
   UP.join();
   ReqL.join();

@@ -29,8 +29,8 @@ void request_listener(user &current_user)
   char req_topic[] = "request";
 
   request_mgr.createTopic(req_topic);
-  request_mgr.createReader();
   request_mgr.createSubscriber();
+  request_mgr.createReader();
 
   DDS::DataReader_var req_data = request_mgr.getReader();
   TSN::requestDataReader_var requestReader = TSN::requestDataReader::_narrow(req_data.in());
@@ -117,7 +117,7 @@ void response_listener(user &current_user)
     response_mgr.deleteSubscriber();
 }
 
-void user_listener(user &current_user)
+void user_listener(user &current_user, std::vector<user>& online_users)
 {
   TSN::user_informationSeq userinfoList;
   DDS::SampleInfoSeq infoSeq;
@@ -149,9 +149,27 @@ void user_listener(user &current_user)
      {
        if(strcmp(userinfoList[j].uuid, current_user.uuid) != 0)
        {
-         std::cout << "=== [Subscriber] user information received :" << std::endl;
+         char uuid[TSN::UUID_SIZE];
+         strcpy(uuid, userinfoList[j].uuid);
+
+         std::vector<std::string> interests;
+         std::string interest;
+         for(unsigned int i; i < userinfoList[j].interests.length(); i++)
+         {
+           interest = DDS::string_dup(userinfoList[j].interests[i]);
+           interests.push_back(interest);
+         }
+         std::vector<post> posts;
+
+         string fname = DDS::string_dup(userinfoList[j].first_name);
+         string lname = DDS::string_dup(userinfoList[j].last_name);
+         long date = userinfoList[j].date_of_birth;
+         unsigned long long hp = userinfoList[j].number_of_highest_post;
+
+         online_users.push_back(user(fname, lname, date, uuid, interests, posts, hp));
+         /*std::cout << "=== [Subscriber] user information received :" << std::endl;
          std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
-         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
+         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;*/
        }
 		}
     userinfo_status = userReader->return_loan(userinfoList, infoSeq);
@@ -245,11 +263,11 @@ void publishRequest(user &current_user)
   }  
 
   strcpy(requestInstance.uuid, current_user.uuid);
-  std::cout << "=== [Publisher] publishing request on network :" << std::endl;
-  std::cout << "  Requester UUID  : " << requestInstance.uuid << std::endl;
+  std::cout << "=== [Publisher] publishing your request on the TSN network :";
  
   ReturnCode_t status = requestWriter->write(requestInstance, DDS::HANDLE_NIL);
   checkStatus(status, "requestDataWriter::write");
+  std::cout << " success" << std::endl;
 
   request_mgr.deleteWriter();
   request_mgr.deletePublisher();
@@ -283,10 +301,9 @@ void publishUserInfo(user &current_user)
   userinfoInstance.last_name = DDS::string_dup((current_user.last_name).c_str());
   strcpy(userinfoInstance.uuid, current_user.uuid);
   
-
-  std::cout << "=== [Publisher] publishing user info on network :" << std::endl;
+ /* std::cout << "=== [Publisher] publishing user info on network :" << std::endl;
   std::cout << "    UUID  : " << userinfoInstance.uuid << std::endl;
-  std::cout << "    Name : " << userinfoInstance.first_name << " " << userinfoInstance.last_name << std::endl;
+  std::cout << "    Name : " << userinfoInstance.first_name << " " << userinfoInstance.last_name << std::endl;*/
 
   ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
   checkStatus(status, "user_informationDataWriter::write");
@@ -347,11 +364,11 @@ void publishResponse(user &current_user, TSN::request r)
     responseInstance.date_of_creation = doc;
     responseInstance.post_body = DDS::string_dup(body.c_str());
 
-    std::cout << "=== [Publisher] publishing user info on network :" << std::endl;
+    /*std::cout << "=== [Publisher] publishing response on network :" << std::endl;
     std::cout << "    UUID  : " << responseInstance.uuid << std::endl;
     std::cout << "    Post ID : " << responseInstance.post_id << std::endl;
     std::cout << "    Date of Creation: " << responseInstance.date_of_creation << std::endl;
-    std::cout << "    Post Body: " << responseInstance.post_body << std::endl;
+    std::cout << "    Post Body: " << responseInstance.post_body << std::endl;*/
 
     ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
     checkStatus(status, "user_informationDataWriter::write");
@@ -365,7 +382,6 @@ void publishResponse(user &current_user, TSN::request r)
 
 user load_user_data(std::string filename)
 {
-  std::cout << "Entering load fucntion " << std::endl;
   std::string home = getenv("HOME"); //.tsn is always stored in home directory
   std::string path = home + "/" + filename;
   std::ifstream in(path);
@@ -379,47 +395,7 @@ user load_user_data(std::string filename)
   //file does not exist, obtain user information
   if(!in)
   {
-    std::ofstream out(path);
-
-    //generating a boost UUID
-    boost::uuids::uuid uuid = boost::uuids::random_generator()();
-    string uuidstring = boost::uuids::to_string(uuid);
-    char myuuid[TSN::UUID_SIZE] = {};
-    strcpy(myuuid, uuidstring.c_str());
-    out << uuidstring << std::endl;
-    std::cout << "No saved user data was found. " << std::endl;
-    std::cout << "Your auto-generated UUID is: " << myuuid << std::endl;
-
-    std::cout << "Enter your first name: ";
-    std::cin >> first_name;
-    out << first_name << std::endl;
-
-    std::cout << "Enter your last name: ";
-    std::cin >> last_name;
-    out << last_name << std::endl;
-
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    long date = tp.tv_sec;
-    out << date << std::endl;
-
-    out << "0" << std::endl; //highest post number is 0
-    string interest;
-    while(true)
-    {
-      std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
-      getline(cin, interest);
-      if(interest == "0")
-      {
-        break;
-      }
-      out << interest << std::endl;
-      interests.push_back(interest);
-      out << "END INTERESTS" << std::endl;
-    }
-
-    out.close();
-    return user(first_name, last_name, date, myuuid, interests, posts, 0);
+    return create_new_user(path);
   }
 
   string uuidstring;
@@ -475,6 +451,65 @@ user load_user_data(std::string filename)
 
     posts.push_back(post(sn, body, doc));
   }
- in.close();
- return user(first_name, last_name, date, myuuid, interests, posts, highest_pnum); 
+  in.close();
+  return user(first_name, last_name, date, myuuid, interests, posts, highest_pnum); 
+}
+
+user create_new_user(std::string path)
+{
+  std::string first_name;
+  std::string last_name;
+  std::vector<post> posts;
+  std::vector<std::string> interests;
+
+  std::ofstream out(path);
+
+  //generating a boost UUID
+  boost::uuids::uuid uuid = boost::uuids::random_generator()();
+  string uuidstring = boost::uuids::to_string(uuid);
+  char myuuid[TSN::UUID_SIZE] = {};
+  strcpy(myuuid, uuidstring.c_str());
+  out << uuidstring << std::endl;
+
+  std::cout << "No saved user data was found. " << std::endl;
+  std::cout << "Your auto-generated UUID is: " << myuuid << std::endl;
+
+  std::cout << "Enter your first name: ";
+  std::cin >> first_name;
+  out << first_name << std::endl;
+
+  std::cout << "Enter your last name: ";
+  std::cin >> last_name;
+  out << last_name << std::endl;
+
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  long date = tp.tv_sec;
+  out << date << std::endl;
+
+  out << "0"; //highest post number is 0
+  string interest;
+  std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
+  while(true)
+  {
+    getline(cin, interest);
+    if(interest == "0")
+    {
+      break;
+    }
+    out << interest << std::endl;
+    interests.push_back(interest);
+  }
+  out << "END INTERESTS" << std::endl;
+  out.close();
+  return user(first_name, last_name, date, myuuid, interests, posts, 0);
+}
+
+void refresh_online_list(std::vector<user>& on)
+{
+  while(true)
+  {
+    on.clear();
+    sleep(60);
+  }
 }
