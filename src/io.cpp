@@ -1,90 +1,45 @@
 #include "io.h"
 
-//needed for testing
+#include <sys/time.h>
+#include <sstream>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-void background(user &current_user)
-{
-  char first_name[70] = {};
-  strcpy(first_name, current_user.first_name.c_str());
-  TSN::requestSeq requestList;
-  TSN::responseSeq responseList;
-  TSN::user_informationSeq userinfoList;
 
+void user_publisher(user &current_user)
+{
+  while(true)
+  {
+    publishUserInfo(current_user);
+    sleep(60);
+  }
+}
+void request_listener(user &current_user)
+{
+  TSN::requestSeq requestList;
   DDS::SampleInfoSeq infoSeq;
 
-  DDSEntityManager userinfo_mgr;
   DDSEntityManager request_mgr;
-  DDSEntityManager response_mgr;  
 
-  userinfo_mgr.createParticipant("TSN");
   request_mgr.createParticipant("TSN");
-  response_mgr.createParticipant("TSN");
-
   TSN::requestTypeSupport_var reqts = new TSN::requestTypeSupport();
-  TSN::responseTypeSupport_var respts = new TSN::responseTypeSupport();
-  TSN::user_informationTypeSupport_var uits = new TSN::user_informationTypeSupport();
-
-
   request_mgr.registerType(reqts.in());
-  response_mgr.registerType(respts.in());
-  userinfo_mgr.registerType(uits.in());
 
-  char user_topic[] = "user_information";
   char req_topic[] = "request";
-  char resp_topic[] = "response";
-	
-  userinfo_mgr.createTopic(user_topic);
+
   request_mgr.createTopic(req_topic);
-  response_mgr.createTopic(resp_topic);
-
-  userinfo_mgr.createSubscriber();
-  request_mgr.createSubscriber();
-  response_mgr.createSubscriber();
-
-  userinfo_mgr.createReader();
   request_mgr.createReader();
-  response_mgr.createReader();
+  request_mgr.createSubscriber();
 
-  DDS::DataReader_var user_data = userinfo_mgr.getReader();
   DDS::DataReader_var req_data = request_mgr.getReader();
-  DDS::DataReader_var resp_data =  response_mgr.getReader();
-
-  TSN::user_informationDataReader_var userReader = TSN::user_informationDataReader::_narrow(user_data.in());
   TSN::requestDataReader_var requestReader = TSN::requestDataReader::_narrow(req_data.in());
-  TSN::responseDataReader_var responseReader = TSN::responseDataReader::_narrow(resp_data.in());
-
-  checkHandle(userReader.in(), "user_informationDataReader::_narrow");
   checkHandle(requestReader.in(), "requestDataReader::_narrow");
-  checkHandle(responseReader.in(), "responseDataReader::_narrow");
 
-  std::cout << "=== [Subscriber] Ready ..." << std::endl;
-
-  ReturnCode_t userinfo_status = -1;
   ReturnCode_t request_status = -1;
-  ReturnCode_t response_status = -1;
-  while(1)
+  
+  while(true)
   {
-    userinfo_status = userReader->take(userinfoList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    checkStatus(userinfo_status, "user_informationDataReader::take");
-    
-     for (DDS::ULong j = 0; j < userinfoList.length(); j++)
-     {
-       if(strcmp(userinfoList[j].uuid, current_user.uuid) != 0)
-       {
-         std::cout << "=== [Subscriber] user information received :" << std::endl;
-         std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
-         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
-       }
-		}
-    userinfo_status = userReader->return_loan(userinfoList, infoSeq);
-    checkStatus(userinfo_status, "user_informationDataReader::return_loan");
-    sleep(1);
-
-    //code for testing receiving requests
-
     request_status = requestReader->take(requestList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
     checkStatus(request_status, "requestInformationDataReader::take");
 
@@ -106,8 +61,39 @@ void background(user &current_user)
     request_status = requestReader->return_loan(requestList, infoSeq);
     checkStatus(request_status, "requestDataReader::return_loan");
     sleep(1);
+  }
 
-    //Receiving responses
+  request_mgr.deleteReader();
+  request_mgr.deleteTopic();
+  request_mgr.deleteParticipant();
+  request_mgr.deleteSubscriber();
+}
+
+void response_listener(user &current_user)
+{
+  TSN::responseSeq responseList;
+  DDS::SampleInfoSeq infoSeq;
+
+  DDSEntityManager response_mgr;
+
+  response_mgr.createParticipant("TSN");
+  TSN::responseTypeSupport_var respts = new TSN::responseTypeSupport();
+  response_mgr.registerType(respts.in());
+
+  char resp_topic[] = "response";
+
+  response_mgr.createTopic(resp_topic);
+  response_mgr.createSubscriber();
+  response_mgr.createReader();
+
+  DDS::DataReader_var resp_data =  response_mgr.getReader();
+  TSN::responseDataReader_var responseReader = TSN::responseDataReader::_narrow(resp_data.in());
+  checkHandle(responseReader.in(), "responseDataReader::_narrow");
+
+  ReturnCode_t response_status = -1;
+  
+  while(true)
+  {
     response_status = responseReader->take(responseList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
     checkStatus(response_status, "responseDataReader::take");
     
@@ -124,23 +110,60 @@ void background(user &current_user)
     response_status = responseReader->return_loan(responseList, infoSeq);
     checkStatus(response_status, "response_informationDataReader::return_loan");
     sleep(1);
-  }	
+  }
+    response_mgr.deleteReader();
+    response_mgr.deleteTopic();
+    response_mgr.deleteParticipant();
+    response_mgr.deleteSubscriber();
+}
 
+void user_listener(user &current_user)
+{
+  TSN::user_informationSeq userinfoList;
+  DDS::SampleInfoSeq infoSeq;
+
+  DDSEntityManager userinfo_mgr;
+
+  userinfo_mgr.createParticipant("TSN");
+  TSN::user_informationTypeSupport_var uits = new TSN::user_informationTypeSupport();
+  userinfo_mgr.registerType(uits.in());
+
+  char user_topic[] = "user_information";
+	
+  userinfo_mgr.createTopic(user_topic);
+  userinfo_mgr.createSubscriber();
+  userinfo_mgr.createReader();
+
+  DDS::DataReader_var user_data = userinfo_mgr.getReader();
+  TSN::user_informationDataReader_var userReader = TSN::user_informationDataReader::_narrow(user_data.in());
+  checkHandle(userReader.in(), "user_informationDataReader::_narrow");
+
+  ReturnCode_t userinfo_status = -1;
+  
+  while(1)
+  {
+    userinfo_status = userReader->take(userinfoList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    checkStatus(userinfo_status, "user_informationDataReader::take");
+    
+     for (DDS::ULong j = 0; j < userinfoList.length(); j++)
+     {
+       if(strcmp(userinfoList[j].uuid, current_user.uuid) != 0)
+       {
+         std::cout << "=== [Subscriber] user information received :" << std::endl;
+         std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
+         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
+       }
+		}
+    userinfo_status = userReader->return_loan(userinfoList, infoSeq);
+    checkStatus(userinfo_status, "user_informationDataReader::return_loan");
+    sleep(1);	
+  }
   userinfo_mgr.deleteReader();
   userinfo_mgr.deleteTopic();
   userinfo_mgr.deleteParticipant();
   userinfo_mgr.deleteSubscriber();
-
-  request_mgr.deleteReader();
-  request_mgr.deleteTopic();
-  request_mgr.deleteParticipant();
-  request_mgr.deleteSubscriber();
-
-  response_mgr.deleteReader();
-  response_mgr.deleteTopic();
-  response_mgr.deleteParticipant();
-  response_mgr.deleteSubscriber();
 }
+
 
 void publishRequest(user &current_user)
 {
@@ -167,29 +190,22 @@ void publishRequest(user &current_user)
   {
     TSN::node_request nodeReqInstance;
     std::vector<TSN::serial_number> requested_p;
-
+    
     string name;
     std::cout << "Enter name of a user to request from: -Not working yet" << std::endl;
-    //getline(cin, name);
-    //cin.ignore();
+    getline(cin, name);
+    cin.ignore();
+    char myuuid[TSN::UUID_SIZE] = {};
 
+    strcpy(myuuid, name.c_str());
     //using random uuid for testing purposes until we can retrieve them through names
 
-    boost::uuids::uuid uuid = boost::uuids::random_generator()();
-    string uuidstring = boost::uuids::to_string(uuid);
-    char myuuid[TSN::UUID_SIZE] = {};
-    strcpy(myuuid, uuidstring.c_str());
-
-    std::cout << "Randomly generated uuid for testing: " << myuuid << std::endl;
-    strcpy(nodeReqInstance.fulfiller_uuid, myuuid);
 
     std::cout << "Enter the serial numbers of the posts you want from that user on a separate line, enter 0 to stop:" << std::endl;
     TSN::serial_number get_input;
     while(true)
     {
       std::cin >> get_input;
-      std::cout << "input was: " << get_input << std::endl;
-
       if(!get_input)
       {
         strcpy(nodeReqInstance.fulfiller_uuid, myuuid);
@@ -226,7 +242,6 @@ void publishRequest(user &current_user)
 
       break;
     }
-    cin.ignore();
   }  
 
   strcpy(requestInstance.uuid, current_user.uuid);
@@ -240,7 +255,6 @@ void publishRequest(user &current_user)
   request_mgr.deletePublisher();
   request_mgr.deleteTopic();
   request_mgr.deleteParticipant();
-
 }
 
 void publishUserInfo(user &current_user)
@@ -343,10 +357,124 @@ void publishResponse(user &current_user, TSN::request r)
     checkStatus(status, "user_informationDataWriter::write");
 
   }
-  
-
   response_mgr.deleteWriter();
   response_mgr.deletePublisher();
   response_mgr.deleteTopic();
   response_mgr.deleteParticipant();
+}
+
+user load_user_data(std::string filename)
+{
+  std::cout << "Entering load fucntion " << std::endl;
+  std::string home = getenv("HOME"); //.tsn is always stored in home directory
+  std::string path = home + "/" + filename;
+  std::ifstream in(path);
+
+  std::string first_name;
+  std::string last_name;
+  char myuuid[TSN::UUID_SIZE] = {};
+  std::vector<post> posts;
+  std::vector<std::string> interests;
+  
+  //file does not exist, obtain user information
+  if(!in)
+  {
+    std::ofstream out(path);
+
+    //generating a boost UUID
+    boost::uuids::uuid uuid = boost::uuids::random_generator()();
+    string uuidstring = boost::uuids::to_string(uuid);
+    char myuuid[TSN::UUID_SIZE] = {};
+    strcpy(myuuid, uuidstring.c_str());
+    out << uuidstring << std::endl;
+    std::cout << "No saved user data was found. " << std::endl;
+    std::cout << "Your auto-generated UUID is: " << myuuid << std::endl;
+
+    std::cout << "Enter your first name: ";
+    std::cin >> first_name;
+    out << first_name << std::endl;
+
+    std::cout << "Enter your last name: ";
+    std::cin >> last_name;
+    out << last_name << std::endl;
+
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    long date = tp.tv_sec;
+    out << date << std::endl;
+
+    out << "0" << std::endl; //highest post number is 0
+    string interest;
+    while(true)
+    {
+      std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
+      getline(cin, interest);
+      if(interest == "0")
+      {
+        break;
+      }
+      out << interest << std::endl;
+      interests.push_back(interest);
+      out << "END INTERESTS" << std::endl;
+    }
+
+    out.close();
+    return user(first_name, last_name, date, myuuid, interests, posts, 0);
+  }
+
+  string uuidstring;
+  in >> uuidstring;
+  strcpy(myuuid, uuidstring.c_str());
+
+  in >> first_name;
+  in >> last_name;
+
+  long date;
+  std::string temp;
+  getline(in, temp);
+  stringstream ss (temp);
+  ss >> date;
+
+  unsigned long long highest_pnum;
+  getline(in, temp);
+  ss.str(temp);
+  ss.clear();
+  ss >> highest_pnum;
+  
+  while(getline(in, temp))
+  {
+    if(temp == "END INTERESTS")
+      break;
+				
+    interests.push_back(temp);    
+  }
+
+  long doc;
+  TSN::serial_number sn;
+  std::string body;
+
+  while(getline(in, temp))
+  {
+    if(temp == "END POSTS")
+      break;
+    
+    //read serial number
+    ss.str(temp);
+    ss.clear();
+    ss >> sn;
+
+    //read post body
+    getline(in, temp);
+    body = temp;
+
+    //read date of creation
+    getline(in, temp);
+    ss.str(temp);
+    ss.clear();
+    ss >> doc;
+
+    posts.push_back(post(sn, body, doc));
+  }
+ in.close();
+ return user(first_name, last_name, date, myuuid, interests, posts, highest_pnum); 
 }
