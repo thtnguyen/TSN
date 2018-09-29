@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 
-void background(string fname);
+void background(user &current_user);
 void publishRequest(user &current_user);
 void publishUserInfo(user &current_user);
+void publishResponse(user &current_user, TSN::request r);

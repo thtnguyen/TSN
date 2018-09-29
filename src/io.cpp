@@ -5,10 +5,10 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-void background(string fname)
+void background(user &current_user)
 {
   char first_name[70] = {};
-  strcpy(first_name, fname.c_str());
+  strcpy(first_name, current_user.first_name.c_str());
   TSN::requestSeq requestList;
   TSN::responseSeq responseList;
   TSN::user_informationSeq userinfoList;
@@ -19,9 +19,9 @@ void background(string fname)
   DDSEntityManager request_mgr;
   DDSEntityManager response_mgr;  
 
-  userinfo_mgr.createParticipant(first_name);
-  request_mgr.createParticipant(first_name);
-  response_mgr.createParticipant(first_name);
+  userinfo_mgr.createParticipant("TSN");
+  request_mgr.createParticipant("TSN");
+  response_mgr.createParticipant("TSN");
 
   TSN::requestTypeSupport_var reqts = new TSN::requestTypeSupport();
   TSN::responseTypeSupport_var respts = new TSN::responseTypeSupport();
@@ -64,6 +64,7 @@ void background(string fname)
 
   ReturnCode_t userinfo_status = -1;
   ReturnCode_t request_status = -1;
+  ReturnCode_t response_status = -1;
   while(1)
   {
     userinfo_status = userReader->take(userinfoList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
@@ -71,9 +72,12 @@ void background(string fname)
     
      for (DDS::ULong j = 0; j < userinfoList.length(); j++)
      {
-       std::cout << "=== [Subscriber] user information received :" << std::endl;
-       std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
-       std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
+       if(strcmp(userinfoList[j].uuid, current_user.uuid) != 0)
+       {
+         std::cout << "=== [Subscriber] user information received :" << std::endl;
+         std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
+         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;
+       }
 		}
     userinfo_status = userReader->return_loan(userinfoList, infoSeq);
     checkStatus(userinfo_status, "user_informationDataReader::return_loan");
@@ -83,23 +87,42 @@ void background(string fname)
 
     request_status = requestReader->take(requestList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
     checkStatus(request_status, "requestInformationDataReader::take");
+
+    if(requestList.length() > 0)
+    {
+      for (DDS::ULong j = 0; j < requestList.length(); j++)
+      {
+        for(DDS::ULong i = 0; i < requestList[j].user_requests.length(); i++)
+        if(strcmp(requestList[j].user_requests[i].fulfiller_uuid, current_user.uuid) == 0)
+          publishResponse(current_user, requestList[j]);
+      }  
+    }
+
     for (DDS::ULong j = 0; j < requestList.length(); j++)
      {
        std::cout << "=== [Subscriber] request received :" << std::endl;
-       std::cout << "Requester UUID  : " << requestList[j].uuid  << std::endl;
-
-      /* for(int n = 0; n < 2; n++)
-       {
-        std::cout << "Requested from user: " << requestList[j].user_requests[n].fulfiller_uuid << std::endl;
-        std::cout << "Serial Nums of posts requested: ";
-        for(int m = 0; m < 2; m++)
-          std::cout << requestList[j].user_requests[n].requested_posts[m];
-          std::cout << " ";
-       }
-       std::cout << std::endl;*/
+       std::cout << "    Requester UUID  : " << requestList[j].uuid  << std::endl;
     } 
     request_status = requestReader->return_loan(requestList, infoSeq);
     checkStatus(request_status, "requestDataReader::return_loan");
+    sleep(1);
+
+    //Receiving responses
+    response_status = responseReader->take(responseList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    checkStatus(response_status, "responseDataReader::take");
+    
+    for (DDS::ULong j = 0; j < responseList.length(); j++)
+     {
+       if(strcmp(responseList[j].uuid, current_user.uuid) != 0)
+       {
+         std::cout << "    UUID  : " << responseList[j].uuid << std::endl;
+         std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
+         std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
+         std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
+       }
+		 }
+    response_status = responseReader->return_loan(responseList, infoSeq);
+    checkStatus(response_status, "response_informationDataReader::return_loan");
     sleep(1);
   }	
 
@@ -124,7 +147,7 @@ void publishRequest(user &current_user)
   //initializing data manager for user information
   DDSEntityManager request_mgr;
 
-  request_mgr.createParticipant((current_user.first_name).c_str());
+  request_mgr.createParticipant("TSN");
   TSN::requestTypeSupport_var mt = new TSN::requestTypeSupport();
   request_mgr.registerType(mt.in());
 
@@ -225,7 +248,7 @@ void publishUserInfo(user &current_user)
 
   //initializing data manager for user information
   DDSEntityManager userinfo_mgr;
-  userinfo_mgr.createParticipant((current_user.first_name).c_str());
+  userinfo_mgr.createParticipant("TSN");
 
   TSN::user_informationTypeSupport_var mt = new TSN::user_informationTypeSupport();
   userinfo_mgr.registerType(mt.in());
@@ -258,4 +281,72 @@ void publishUserInfo(user &current_user)
   userinfo_mgr.deletePublisher();
   userinfo_mgr.deleteTopic();
   userinfo_mgr.deleteParticipant();
+}
+
+void publishResponse(user &current_user, TSN::request r)
+{
+
+  //initializing data manager for user information
+  DDSEntityManager response_mgr;
+  response_mgr.createParticipant("TSN");
+
+  TSN::responseTypeSupport_var mt = new TSN::responseTypeSupport();
+  response_mgr.registerType(mt.in());
+
+  char response_topic[] = "response";
+  response_mgr.createTopic(response_topic);
+
+  response_mgr.createPublisher();
+  response_mgr.createWriter(false);
+
+  DDS::DataWriter_var dw = response_mgr.getWriter();
+  TSN::responseDataWriter_var responseWriter = TSN::responseDataWriter::_narrow(dw.in());
+
+  TSN::node_request my_node_req;
+
+  for (DDS::ULong j = 0; j < r.user_requests.length(); j++)
+  {
+    if(strcmp(r.user_requests[j].fulfiller_uuid, current_user.uuid) == 0)
+      my_node_req = r.user_requests[j];
+  }
+
+  for(DDS::ULong j = 0; j < my_node_req.requested_posts.length(); j++)
+  {
+    int n = 0;
+    TSN::response responseInstance;
+
+    std::string body;
+    TSN::serial_number serial_num;
+    long doc;
+    std::vector<post>::iterator it;
+    for(it = current_user.posts.begin(); it != current_user.posts.end(); it++, n++)
+    {
+      if(my_node_req.requested_posts[j] == it->get_sn())
+      {
+        body = it->get_body();
+        serial_num = it->get_sn();
+        doc = it->get_doc();
+      }
+    }
+    strcpy(responseInstance.uuid, current_user.uuid);
+    responseInstance.post_id = serial_num;
+    responseInstance.date_of_creation = doc;
+    responseInstance.post_body = DDS::string_dup(body.c_str());
+
+    std::cout << "=== [Publisher] publishing user info on network :" << std::endl;
+    std::cout << "    UUID  : " << responseInstance.uuid << std::endl;
+    std::cout << "    Post ID : " << responseInstance.post_id << std::endl;
+    std::cout << "    Date of Creation: " << responseInstance.date_of_creation << std::endl;
+    std::cout << "    Post Body: " << responseInstance.post_body << std::endl;
+
+    ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
+    checkStatus(status, "user_informationDataWriter::write");
+
+  }
+  
+
+  response_mgr.deleteWriter();
+  response_mgr.deletePublisher();
+  response_mgr.deleteTopic();
+  response_mgr.deleteParticipant();
 }

@@ -117,12 +117,10 @@ int main (int argc, char* argv[])
 
   publishUserInfo(current_user);
 
-  std::thread BG (background, first_name);
+  std::thread BG (background, std::ref(current_user));
 
-  //enter menu state
   menu(current_user);
 
-  std::cout << "end menu" << std::endl;
   exit(0);
   BG.join();
 
