@@ -2,10 +2,10 @@
 **TO-DO LIST**
 Functionalities to implement:
 1. Show User - display an individual user's information. This is:
-  1. First Name
-  2. Last Name
-  3. Interests
-  4. All their posts
+  * First Name
+  * Last Name
+  * Interests
+  * All their posts
 2. List User - list all the users currently connected to the network.
 3. Edit - allow the user's personal information (name, *interests*) to be changed
 4. Resync - wipe all saved data - the *files* - and reset sending/receiving on the network
