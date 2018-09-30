@@ -17,3 +17,4 @@ void publishResponse(user &current_user, TSN::request r);
 user load_user_data(std::string filename);
 user create_new_user(std::string path);
 void refresh_online_list(std::vector<user>& on);
+void request_all_posts(user &current_user, user &requested_user);
