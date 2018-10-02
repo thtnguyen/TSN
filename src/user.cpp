@@ -16,6 +16,7 @@ user::user(std::string fname, std::string lname, long dob, char *id, std::vector
 void user::add_post(post p)
 {
     posts.push_back(p);
+    highest_pnum++;
 }
 
 unsigned long long user::get_highest_pnum()

@@ -12,7 +12,7 @@ void user_publisher(user &current_user)
   while(true)
   {
     publishUserInfo(current_user);
-    sleep(60);
+    sleep(30);
   }
 }
 void request_listener(user &current_user)
@@ -301,6 +301,27 @@ void publishUserInfo(user &current_user)
   userinfoInstance.first_name = DDS::string_dup((current_user.first_name).c_str());
   userinfoInstance.last_name = DDS::string_dup((current_user.last_name).c_str());
   strcpy(userinfoInstance.uuid, current_user.uuid);
+  userinfoInstance.number_of_highest_post = current_user.get_highest_pnum();
+  userinfoInstance.date_of_birth = current_user.date_of_birth;
+
+  //get length of vector
+  int n = 0;
+  std::vector<std::string>::iterator it;
+  for(it = current_user.interests.begin(); it != current_user.interests.end(); it++)
+  {
+    n++;
+  }
+  userinfoInstance.interests.length(n);
+
+  //store interests in sequence
+  n = 0;
+  for(it = current_user.interests.begin(); it != current_user.interests.end(); it++, n++)
+  {
+    userinfoInstance.interests[n] = DDS::string_dup((*it).c_str());
+  }
+
+ /* std::cout << "publishing user info on network: " << std::endl;
+  std::cout << "published highest_ pnum = " <<  userinfoInstance.number_of_highest_post << std::endl;*/
 
   ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
   checkStatus(status, "user_informationDataWriter::write");
@@ -507,11 +528,11 @@ void refresh_online_list(std::vector<user>& on)
   while(true)
   {
     on.clear();
-    sleep(60);
+    sleep(30);
   }
 }
 
-void request_all_posts(user &current_user, user &requested_user)
+void request_all_posts(user &current_user, user requested_user)
 {
     //initializing data manager for user information
   DDSEntityManager request_mgr;
@@ -529,17 +550,16 @@ void request_all_posts(user &current_user, user &requested_user)
   DDS::DataWriter_var dw = request_mgr.getWriter();
   TSN::requestDataWriter_var requestWriter = TSN::requestDataWriter::_narrow(dw.in());
   TSN::request requestInstance;
-  std::vector<TSN::node_request> requests;
 
   TSN::node_request nodeReqInstance;
   strcpy(nodeReqInstance.fulfiller_uuid, requested_user.uuid);
 
-  int req_post_size = (int) requested_user.highest_pnum;
-  nodeReqInstance.requested_posts.length(req_post_size);
+  nodeReqInstance.requested_posts.length(requested_user.get_highest_pnum());
   std::vector<TSN::serial_number> requested_p;
-  for(unsigned long long n = 0; n < requested_user.highest_pnum; n++)
+  for(unsigned long long n = 0; n < requested_user.get_highest_pnum(); n++)
+  {
     nodeReqInstance.requested_posts[n] = n+1;
-
+  }
   strcpy(requestInstance.uuid, current_user.uuid);
   requestInstance.user_requests.length(1);
   requestInstance.user_requests[0] = nodeReqInstance;

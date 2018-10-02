@@ -24,7 +24,6 @@ void printMenu()
 //create and add post
 void createPost(user &current_user)
 {
-  (current_user).highest_pnum++;
   TSN::serial_number sn = (TSN::serial_number) current_user.get_highest_pnum();
 
   std::string message;
@@ -39,7 +38,7 @@ void createPost(user &current_user)
   post p = post(sn, message, date);
 
   current_user.add_post(p);
-
+  std::cout << "highest pnum after adding post: " << current_user.get_highest_pnum() << std::endl;
   //implement writing post information to .tsn file here
 
   state = -1;
@@ -62,13 +61,15 @@ void show_user(user &current_user, std::vector<user> on)
   {
     if(n == choice)
       {
+        std::cout << "highest pnum in show_user(): " << it->get_highest_pnum() << std::endl;
         std::cout << "Name: " << it->first_name << " " << it->last_name << std::endl;
         std::cout << "Interests: " << std::endl;
+
         std::vector<std::string>::iterator interests_it;
-
         for(interests_it = it->interests.begin(); interests_it != it->interests.end(); interests_it++)
-          std::cout << "    "<< *interests_it << std::endl;
-
+        {
+          std::cout << "    ,"<< *interests_it << std::endl;
+        }
         std::cout << "Posts: " << std::endl;
         request_all_posts(current_user, *it);
         sleep(2);
@@ -88,7 +89,7 @@ void print_online(std::vector<user>& on)
   for(it = on.begin(); it != on.end(); it++)
   {
     std::cout << "UUID  : " << it->uuid;
-    std::cout << "    Name : " << it->first_name << " " << it->last_name << std::endl;
+    std::cout << "    Name : " << it->first_name << " " << it->last_name << "   highest pnum: " << it->get_highest_pnum() << std::endl;
   }
   state = -1;
 }
@@ -118,6 +119,7 @@ void menu(user &current_user, std::vector<user>& on)
     if(state == 3)
     {
       print_online(on);
+      std::cout << "current user pnum: " << current_user.get_highest_pnum() << std::endl;
     }
     if(state == 4)
     {
