@@ -95,10 +95,9 @@ void response_listener(user &current_user)
     
     for (DDS::ULong j = 0; j < responseList.length(); j++)
      {
-       std::cout << "response found..." << std::endl;
        if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id > 0)
        {
-         std::cout << "    UUID  : " << responseList[j].uuid << std::endl;
+         std::cout << "\n    UUID  : " << responseList[j].uuid << std::endl;
          std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
          std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
          std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
@@ -151,7 +150,7 @@ void user_listener(user &current_user, std::vector<user>& online_users)
 
          std::vector<std::string> interests;
          std::string interest;
-         for(unsigned int i; i < userinfoList[j].interests.length(); i++)
+         for(unsigned int i = 0; i < userinfoList[j].interests.length(); i++)
          {
            interest = DDS::string_dup(userinfoList[j].interests[i]);
            interests.push_back(interest);
@@ -180,7 +179,7 @@ void user_listener(user &current_user, std::vector<user>& online_users)
 }
 
 
-void publishRequest(user &current_user)
+long publishRequest(user &current_user)
 {
   //initializing data manager for user information
   DDSEntityManager request_mgr;
@@ -200,6 +199,7 @@ void publishRequest(user &current_user)
   TSN::request requestInstance;
   std::vector<TSN::node_request> requests;
 
+  int post_seq_length = 0;
   //getting individual node requests
   while(true)
   {
@@ -232,14 +232,13 @@ void publishRequest(user &current_user)
     }
     
     strcpy(nodeReqInstance.fulfiller_uuid, myuuid);
-    int post_seq_length = static_cast<int> (requested_p.size());
+    post_seq_length = static_cast<int> (requested_p.size()); //declare within loop after debugging
     nodeReqInstance.requested_posts.length(post_seq_length);
 
     int n = 0;
     std::vector<TSN::serial_number>::iterator it;
     for(it = requested_p.begin(); it != requested_p.end(); it++, n++)
     {
-      std::cout << "n = " << n << std::endl;
       nodeReqInstance.requested_posts[n] = *it;
     }
     requests.push_back(nodeReqInstance);
@@ -270,10 +269,17 @@ void publishRequest(user &current_user)
   checkStatus(status, "requestDataWriter::write");
   std::cout << " success" << std::endl;
 
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  long date = tp.tv_sec;
+
   request_mgr.deleteWriter();
   request_mgr.deletePublisher();
   request_mgr.deleteTopic();
   request_mgr.deleteParticipant();
+
+  sleep(1);
+  return date;
 }
 
 void publishUserInfo(user &current_user)
@@ -317,11 +323,9 @@ void publishUserInfo(user &current_user)
   n = 0;
   for(it = current_user.interests.begin(); it != current_user.interests.end(); it++, n++)
   {
-    userinfoInstance.interests[n] = DDS::string_dup((*it).c_str());
+    //userinfoInstance.interests[n] = DDS::string_dup((*it).c_str());
+    userinfoInstance.interests[n] = DDS::string_dup(it->c_str());
   }
-
- /* std::cout << "publishing user info on network: " << std::endl;
-  std::cout << "published highest_ pnum = " <<  userinfoInstance.number_of_highest_post << std::endl;*/
 
   ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
   checkStatus(status, "user_informationDataWriter::write");
@@ -358,38 +362,45 @@ void publishResponse(user &current_user, TSN::request r)
     if(strcmp(r.user_requests[j].fulfiller_uuid, current_user.uuid) == 0)
       my_node_req = r.user_requests[j];
   
-  for(DDS::ULong j = 0; j < my_node_req.requested_posts.length(); j++)
-  {
-    int n = 0;
-    TSN::response responseInstance;
-
-    std::string body;
-    TSN::serial_number serial_num;
-    long doc;
-    std::vector<post>::iterator it;
-    for(it = current_user.posts.begin(); it != current_user.posts.end(); it++, n++)
+    for(DDS::ULong j = 0; j < my_node_req.requested_posts.length(); j++)
     {
-      if(my_node_req.requested_posts[j] == it->get_sn())
+      int n = 0;
+      TSN::response responseInstance;
+
+      std::string body;
+      TSN::serial_number serial_num;
+      long doc;
+      std::vector<post>::iterator it;
+      bool post_found = false;
+      for(it = current_user.posts.begin(); it != current_user.posts.end(); it++, n++)
       {
-        body = it->get_body();
-        serial_num = it->get_sn();
-        doc = it->get_doc();
+        if(my_node_req.requested_posts[j] == it->get_sn())
+        {
+          body = it->get_body();
+          serial_num = it->get_sn();
+          doc = it->get_doc();
+          post_found = true;
+          break;
+        }
       }
-    }
-      strcpy(responseInstance.uuid, current_user.uuid);
-      responseInstance.post_id = serial_num;
-      responseInstance.date_of_creation = doc;
-      responseInstance.post_body = DDS::string_dup(body.c_str());
 
-      std::cout << "=== [Publisher] publishing response on network :" << std::endl;
-      std::cout << "    UUID  : " << responseInstance.uuid << std::endl;
-      std::cout << "    Post ID : " << responseInstance.post_id << std::endl;
-      std::cout << "    Date of Creation: " << responseInstance.date_of_creation << std::endl;
-      std::cout << "    Post Body: " << responseInstance.post_body << std::endl;
+      if(post_found)
+      {
+        strcpy(responseInstance.uuid, current_user.uuid);
+        responseInstance.post_id = serial_num;
+        responseInstance.date_of_creation = doc;
+        responseInstance.post_body = DDS::string_dup(body.c_str());
 
-      ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
-      checkStatus(status, "user_informationDataWriter::write");
-      sleep(2);
+        /*std::cout << "=== [Publisher] publishing response on network :" << std::endl;
+        std::cout << "    UUID  : " << responseInstance.uuid << std::endl;
+        std::cout << "    Post ID : " << responseInstance.post_id << std::endl;
+        std::cout << "    Date of Creation: " << responseInstance.date_of_creation << std::endl;
+        std::cout << "    Post Body: " << responseInstance.post_body << std::endl;*/
+
+        ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
+        checkStatus(status, "user_informationDataWriter::write");
+        sleep(2);
+      }
     }
   }
   response_mgr.deleteWriter();
@@ -425,12 +436,12 @@ user load_user_data(std::string filename)
 
   long date;
   std::string temp;
-  getline(in, temp);
+  in >> temp;
   stringstream ss (temp);
   ss >> date;
 
   unsigned long long highest_pnum;
-  getline(in, temp);
+  in >> temp;
   ss.str(temp);
   ss.clear();
   ss >> highest_pnum;
@@ -563,15 +574,41 @@ void request_all_posts(user &current_user, user requested_user)
   strcpy(requestInstance.uuid, current_user.uuid);
   requestInstance.user_requests.length(1);
   requestInstance.user_requests[0] = nodeReqInstance;
-  
-  std::cout << "\n=== [Publisher] publishing your request on the TSN network :";
- 
+
   ReturnCode_t status = requestWriter->write(requestInstance, DDS::HANDLE_NIL);
   checkStatus(status, "requestDataWriter::write");
-  std::cout << " success" << std::endl;
 
   request_mgr.deleteWriter();
   request_mgr.deletePublisher();
   request_mgr.deleteTopic();
   request_mgr.deleteParticipant();
+}
+
+void write_user_data(user user_to_save, std::string file)
+{
+  std::string home = getenv("HOME"); //.tsn is always stored in home directory
+  std::string path = home + "/" + file;
+  std::ofstream out (path);
+  out << user_to_save.uuid << std::endl;
+  out << user_to_save.first_name << std::endl;
+  out << user_to_save.last_name << std::endl;
+  out << user_to_save.date_of_birth << std::endl;
+  out << user_to_save.get_highest_pnum();
+
+  std::vector<std::string>::iterator it;
+  for(it = user_to_save.interests.begin(); it != user_to_save.interests.end(); it++)
+  {
+    out << *it << std::endl;
+  }
+  out << "END INTERESTS" << std::endl;
+
+  std::vector<post>::iterator posts_it;
+  for(posts_it = user_to_save.posts.begin(); posts_it != user_to_save.posts.end(); posts_it++)
+  {
+    //write_post_data(*it, out);
+    out << posts_it->get_sn() << std::endl;
+    out << posts_it->get_body() << std::endl;
+    out << posts_it->get_doc() << std::endl;
+  }
+  out << "END POSTS" << std::endl;
 }
