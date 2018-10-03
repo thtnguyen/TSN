@@ -7,10 +7,10 @@ Functionalities to implement:
   * Interests
   * All their posts
 2. ~~List User - list all the users currently connected to the network.~~ - implemented
-3. Edit - allow the user's personal information (name, *interests*) to be changed
+3. ~~Edit - allow the user's personal information (name, *interests*) to be changed~~ -implemented
 4. Resync - wipe all saved data - the *files* - and reset sending/receiving on the network
 
 __Status Updates:_
 
-What _**I'm**_ currently working on: editing user information -TN
+What _**I'm**_ currently working on: resync, bug fixes for show&list users -TN
 
