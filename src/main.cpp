@@ -5,6 +5,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <iomanip>
+#include <cstdio>
 
 #include "io.h"
 
@@ -34,13 +35,25 @@ void show_stats(user &current_user, std::vector<user> all_users)
     total_num_users++;
   }
   double content_percent = 0;
-  if(current_user.highest_pnum > 0)
+  if(current_user.get_highest_pnum() > 0)
   {
     total_posts += current_user.get_highest_pnum();
     content_percent = (double) current_user.get_highest_pnum() / total_posts * 100;
   }
   std::cout << "\nThere are " << total_num_users << " other nodes known." << std::endl;
-  std::cout << "This node contains " << fixed << std::setprecision(2) << content_percent << " \\% of posts available on the TSN network." << std::endl;
+  std::cout << "This node contains " << fixed << std::setprecision(2) << content_percent << "\% of posts available on the TSN network." << std::endl;
+}
+
+void resync(std::vector<user>& online_users, std::vector<user>& all_users)
+{
+  std::string home = getenv("HOME");
+  std::string path = home + "/.tsnusers";
+  std::remove(path.c_str());
+
+  online_users.clear();
+  all_users.clear();
+
+  std::cout << "\nData about all other known and online nodes have been wiped." << std::endl;
 }
 
 void edit_user(user &current_user)
@@ -132,6 +145,7 @@ void show_user(user &current_user, std::vector<user> on)
   int on_list_size = static_cast<int> (on.size());
   if(on_list_size > 0)
   {
+    std::cout << "==========ONLINE USERS==========" << std::endl;
     std::cout << "\nChoose which user to show: " << std::endl;
 
     n = 0;
@@ -141,7 +155,6 @@ void show_user(user &current_user, std::vector<user> on)
     {
       if(n == choice)
         {
-          //std::cout << "highest pnum in show_user(): " << it->get_highest_pnum() << std::endl;
           std::cout << "Name: " << it->first_name << " " << it->last_name << std::endl;
           std::cout << "Interests: ";
 
@@ -170,7 +183,7 @@ void print_online(std::vector<user>& on)
 {
   if(on.size() == 0)
   {
-    std::cout << "No other users currently connected to TSN." << std::endl;
+    std::cout << "\nNo other users currently connected to TSN." << std::endl;
     return;
   }
   std::vector<user>::iterator it;
@@ -207,11 +220,15 @@ void menu(user &current_user, std::vector<user>& on, std::vector<user>& all)
       struct timeval tp;
       gettimeofday(&tp, NULL);
       long current_time = tp.tv_sec;
-
+      long ret_value = 0;
       if(last_request_time == 0 || current_time - last_request_time > 60)
-        last_request_time = publishRequest(current_user);
+      {
+        ret_value = publishRequest(current_user, on);
+        if(ret_value > 0)
+          last_request_time = ret_value;
+      }
       else
-        std::cout << "You can only publish a request once every 60 seconds." << std::endl;
+        std::cout << "\nYou can only publish a request once every 60 seconds." << std::endl;
     }
     if(state == 3)
     {
@@ -241,70 +258,15 @@ int main (int argc, char* argv[])
 {	
   std::cout << "Welcome to The Social Network." << std::endl;
 
-  boost::uuids::uuid uuid = boost::uuids::random_generator()();
-  string uuidstring = boost::uuids::to_string(uuid);
-  char myuuid[TSN::UUID_SIZE] = {};
-  strcpy(myuuid, uuidstring.c_str());
-
-  //user current_user = load_user_data(".tsn");
-  
-  std::cout << "Your auto-generated UUID is: " << myuuid << std::endl;
-
-  std::string first_name;
-  std::cout << "Enter your first name: ";
-  std::cin >> first_name;
-
-  std::string last_name;
-  std::cout << "Enter your last name: ";
-  std::cin >> last_name;
-
-  struct timeval tp;
-  gettimeofday(&tp, NULL);
-  long date = tp.tv_sec;
-
-  std::vector<std::string> interests;
-  string interest;
-  std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
-  while(true)
-  {
-    getline(cin, interest);
-    if(interest == "0")
-    {
-      break;
-    }
-    interests.push_back(interest);
-  } 
-
-  std::vector<post> posts;
-  user current_user = user(first_name, last_name, date, myuuid, interests, posts, 0);
-
-  
-  
-  //test if load_user_data workd properly
-
-  /*std::cout << "uuid: " << current_user.uuid << std::endl;
-  std::cout << "fn: " << current_user.first_name << std::endl;
-  std::cout << "ln: " << current_user.last_name << std::endl;
-  std::cout << "dob: " << current_user.date_of_birth << std::endl;
-  std::cout << "highpnum: " << current_user.get_highest_pnum() << "\n" << std::endl;
-  
-  std::vector<post>::iterator it;
-  for(it = current_user.posts.begin(); it != current_user.posts.end(); it++)
-  {
-    std::cout << it->get_sn() << std::endl;
-    std::cout << it->get_doc() << std::endl;
-    std::cout << it->get_body() << "\n" << std::endl; 
-  }
-
-  exit(0);*/
-
   std::vector<user> online_users; //vector is constantly refreshed to see who is on the network
   std::vector<user> all_users; //contains all known users thus far, data is written to a file when updated
+
+  user current_user = load_user_data(all_users);
   std::thread UP (user_publisher, std::ref(current_user));  
   std::thread UL (user_listener, std::ref(current_user), std::ref(online_users), std::ref(all_users));
   std::thread ROL (refresh_online_list, std::ref(online_users));
   std::thread ReqL(request_listener, std::ref(current_user));
-  std::thread RespL (response_listener, std::ref(current_user), online_users);
+  std::thread RespL (response_listener, std::ref(current_user), std::ref(online_users));
 
   menu(current_user, online_users, all_users);
 

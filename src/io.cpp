@@ -64,7 +64,7 @@ void request_listener(user &current_user)
   request_mgr.deleteSubscriber();
 }
 
-void response_listener(user &current_user, std::vector<user> online_users)
+void response_listener(user &current_user, std::vector<user>& online_users)
 {
   TSN::responseSeq responseList;
   DDS::SampleInfoSeq infoSeq;
@@ -97,16 +97,15 @@ void response_listener(user &current_user, std::vector<user> online_users)
        if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id > 0)
        {
          std::vector<user>::iterator it;
-         std::string name = "name not retrieved";
+         std::string name = "unable to retrieve name";
          for(it = online_users.begin(); it != online_users.end(); it++)
          {
-           if(it->uuid == responseList[j].uuid)
+           if(strcmp(it->uuid, responseList[j].uuid) == 0)
            {
              name = it->first_name + " " + it->last_name;
              break;
            }
          }
-
          std::cout << "\n    Name  : " << name << std::endl;
          std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
          std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
@@ -204,9 +203,6 @@ void user_listener(user &current_user, std::vector<user>& online_users, std::vec
          }
          out.close();
 
-         /*std::cout << "=== [Subscriber] user information received :" << std::endl;
-         std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
-         std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;*/
        }
 		}
     userinfo_status = userReader->return_loan(userinfoList, infoSeq);
@@ -220,7 +216,7 @@ void user_listener(user &current_user, std::vector<user>& online_users, std::vec
 }
 
 
-long publishRequest(user &current_user)
+long publishRequest(user &current_user, std::vector<user> online_users)
 {
   //initializing data manager for user information
   DDSEntityManager request_mgr;
@@ -247,15 +243,46 @@ long publishRequest(user &current_user)
     TSN::node_request nodeReqInstance;
     std::vector<TSN::serial_number> requested_p;
     
-    string name;
-    std::cout << "Enter UUID of a user to request from:" << std::endl;
-    getline(cin, name);
-    cin.ignore();
     char myuuid[TSN::UUID_SIZE] = {};
 
-    strcpy(myuuid, name.c_str());
-    //using random uuid for testing purposes until we can retrieve them through names
+    std::vector<user>::iterator user_it;
+    int n = 0;
+    std::cout << std::endl;
+    for(user_it = online_users.begin(); user_it != online_users.end(); user_it++, n++)
+    {
+      std::cout << "(" << n << ") " << user_it->first_name << " " << user_it->last_name << std::endl;
+    }
 
+    TSN::serial_number requested_hpnum;
+    int on_list_size = static_cast<int> (online_users.size());
+    if(on_list_size > 0)
+    {
+      std::cout << "==========ONLINE USERS==========" << std::endl;
+      std::cout << "\nChoose which user to request from: " << std::endl;
+
+      n = 0;
+      int choice;
+      std::cin >> choice;
+      for(user_it = online_users.begin(); n < choice+1 ; user_it++, n++)
+      {
+        if(n == choice)
+          {
+            strcpy(myuuid, user_it->uuid);
+            requested_hpnum = user_it->get_highest_pnum();
+          }
+      }
+    }
+    else
+    {
+      std::cout << "\nThere are no users online to publish a request to." << std::endl;
+      return -1;
+    }
+
+    if(requested_hpnum == 0)
+    {
+      std::cout << "This user has no posts to request for." << std::endl;
+      return -1;
+    }
 
     std::cout << "Enter the serial numbers of the posts you want from that user on a separate line, enter 0 to stop:" << std::endl;
     TSN::serial_number get_input;
@@ -268,7 +295,12 @@ long publishRequest(user &current_user)
       }
       else
       {
-        requested_p.push_back(get_input);
+        if(get_input > requested_hpnum)
+        {
+          std::cout << "The user doesn't have a post with that serial number. Please re-enter." << std::endl;
+        }
+        else
+          requested_p.push_back(get_input);
       }
     }
     
@@ -276,11 +308,11 @@ long publishRequest(user &current_user)
     post_seq_length = static_cast<int> (requested_p.size()); //declare within loop after debugging
     nodeReqInstance.requested_posts.length(post_seq_length);
 
-    int n = 0;
-    std::vector<TSN::serial_number>::iterator it;
-    for(it = requested_p.begin(); it != requested_p.end(); it++, n++)
+    n = 0;
+    std::vector<TSN::serial_number>::iterator sn_it;
+    for(sn_it = requested_p.begin(); sn_it != requested_p.end(); sn_it++, n++)
     {
-      nodeReqInstance.requested_posts[n] = *it;
+      nodeReqInstance.requested_posts[n] = *sn_it;
     }
     requests.push_back(nodeReqInstance);
 
@@ -364,7 +396,6 @@ void publishUserInfo(user &current_user)
   n = 0;
   for(it = current_user.interests.begin(); it != current_user.interests.end(); it++, n++)
   {
-    //userinfoInstance.interests[n] = DDS::string_dup((*it).c_str());
     userinfoInstance.interests[n] = DDS::string_dup(it->c_str());
   }
 
@@ -432,12 +463,6 @@ void publishResponse(user &current_user, TSN::request r)
         responseInstance.date_of_creation = doc;
         responseInstance.post_body = DDS::string_dup(body.c_str());
 
-        /*std::cout << "=== [Publisher] publishing response on network :" << std::endl;
-        std::cout << "    UUID  : " << responseInstance.uuid << std::endl;
-        std::cout << "    Post ID : " << responseInstance.post_id << std::endl;
-        std::cout << "    Date of Creation: " << responseInstance.date_of_creation << std::endl;
-        std::cout << "    Post Body: " << responseInstance.post_body << std::endl;*/
-
         ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
         checkStatus(status, "user_informationDataWriter::write");
         sleep(2);
@@ -450,10 +475,10 @@ void publishResponse(user &current_user, TSN::request r)
   response_mgr.deleteParticipant();
 }
 
-user load_user_data(std::string filename, std::vector<user>& all_users)
+user load_user_data(std::vector<user>& all_users)
 {
   std::string home = getenv("HOME"); //.tsn is always stored in home directory
-  std::string path = home + "/" + filename;
+  std::string path = home + "/.tsn";
   std::ifstream in(path);
 
   std::string first_name;
@@ -525,13 +550,12 @@ user load_user_data(std::string filename, std::vector<user>& all_users)
 
   user current_user = user(first_name, last_name, date, myuuid, interests, posts, highest_pnum);
 
- //LOADING FORM TSNUSERS !!!!
-
+  //loading info about known nodes
   path = home + "/.tsnusers";
   in.open(path);
   while(getline(in, temp)) 
   {
-    interests.clear(); //!!
+    interests.clear(); 
     strcpy(myuuid, temp.c_str());
 
     in >> first_name;
@@ -558,7 +582,6 @@ user load_user_data(std::string filename, std::vector<user>& all_users)
 
     all_users.push_back(user(first_name, last_name, date, myuuid, interests, posts, highest_pnum));
   }
-  //LOADING FORM TSNUSERS END
   return current_user; 
 }
 
@@ -617,7 +640,7 @@ void refresh_online_list(std::vector<user>& on)
   while(true)
   {
     on.clear();
-    sleep(30);
+    sleep(300);
   }
 }
 
@@ -682,7 +705,6 @@ void write_user_data(user user_to_save, std::ofstream& out, bool write_posts)
     std::vector<post>::iterator posts_it;
     for(posts_it = user_to_save.posts.begin(); posts_it != user_to_save.posts.end(); posts_it++)
     {
-      //write_post_data(*it, out);
       out << posts_it->get_sn() << std::endl;
       out << posts_it->get_body() << std::endl;
       out << posts_it->get_doc() << std::endl;
