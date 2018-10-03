@@ -8,9 +8,11 @@ Functionalities to implement:
   * All their posts
 2. ~~List User - list all the users currently connected to the network.~~ - implemented
 3. ~~Edit - allow the user's personal information (name, *interests*) to be changed~~ -implemented
-4. Resync - wipe all saved data - the *files* - and reset sending/receiving on the network
+4. ~~Resync - wipe all saved data - the *files* - and reset sending/receiving on the network~~
+
+Statics command also implemented
 
 __Status Updates:_
 
-What _**I'm**_ currently working on: resync, bug fixes for show&list users -TN
+What _**I'm**_ currently working on: documentation, commenting source code, final testing/debugging for Iteration 1 -TN
 
