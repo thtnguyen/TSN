@@ -4,6 +4,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <iomanip>
 
 #include "io.h"
 
@@ -18,7 +19,28 @@ void printMenu()
   std::cout << "(4) Show User" << std::endl;
   std::cout << "(5) Edit" << std::endl;
   std::cout << "(6) Resync" << std::endl;
+  std::cout << "(7) Statistics" << std::endl;
   std::cout << "(0) Exit" << std::endl;
+}
+
+void show_stats(user &current_user, std::vector<user> all_users)
+{
+  std::vector<user>::iterator it;
+  TSN::serial_number total_posts = 0;
+  int total_num_users = 0; //number of known users
+  for(it = all_users.begin(); it != all_users.end(); it++)
+  {
+    total_posts += it->get_highest_pnum();
+    total_num_users++;
+  }
+  double content_percent = 0;
+  if(current_user.highest_pnum > 0)
+  {
+    total_posts += current_user.get_highest_pnum();
+    content_percent = (double) current_user.get_highest_pnum() / total_posts * 100;
+  }
+  std::cout << "\nThere are " << total_num_users << " other nodes known." << std::endl;
+  std::cout << "This node contains " << fixed << std::setprecision(2) << content_percent << " \\% of posts available on the TSN network." << std::endl;
 }
 
 void edit_user(user &current_user)
@@ -61,14 +83,12 @@ void edit_user(user &current_user)
     }
   }
 
-  //print statements for debugging
-  std::cout << "new first name: " << current_user.first_name << std::endl;
-  std::cout << "new last name: " << current_user.last_name << std::endl;
-  std::vector<std::string>::iterator interests_it;
-    for(interests_it = current_user.interests.begin(); interests_it != current_user.interests.end(); interests_it++)
-    {
-      std::cout << "  -- " <<*interests_it << std::endl;
-    }
+  std::string home = getenv("HOME"); //.tsn is always stored in home directory
+  std::string path = home + "/.tsn";
+  std::ofstream out (path);
+  write_user_data(current_user, out, true);
+  out.close();
+  state = -1;
 }
 
 //create and add post
@@ -89,7 +109,13 @@ void createPost(user &current_user)
 
   current_user.add_post(p);
   //implement writing post information to .tsn file here
-  write_user_data(current_user, ".tsn");
+
+  std::string home = getenv("HOME"); //.tsn is always stored in home directory
+  std::string path = home + "/.tsn";
+  std::ofstream out (path);
+
+  write_user_data(current_user, out, true);
+  out.close();
 
   state = -1;
 }
@@ -156,7 +182,7 @@ void print_online(std::vector<user>& on)
   state = -1;
 }
 
-void menu(user &current_user, std::vector<user>& on)
+void menu(user &current_user, std::vector<user>& on, std::vector<user>& all)
 {
   state = -1;
   long last_request_time = 0;
@@ -198,6 +224,14 @@ void menu(user &current_user, std::vector<user>& on)
     if(state == 5)
     {
       edit_user(current_user);
+    }
+    if(state == 6)
+    {
+
+    }
+    if(state == 7)
+    {
+      show_stats(current_user, all);
     }
     
   }
@@ -264,14 +298,15 @@ int main (int argc, char* argv[])
 
   exit(0);*/
 
-  std::vector<user> online_users;
+  std::vector<user> online_users; //vector is constantly refreshed to see who is on the network
+  std::vector<user> all_users; //contains all known users thus far, data is written to a file when updated
   std::thread UP (user_publisher, std::ref(current_user));  
-  std::thread UL (user_listener, std::ref(current_user), std::ref(online_users));
+  std::thread UL (user_listener, std::ref(current_user), std::ref(online_users), std::ref(all_users));
   std::thread ROL (refresh_online_list, std::ref(online_users));
   std::thread ReqL(request_listener, std::ref(current_user));
-  std::thread RespL (response_listener, std::ref(current_user));
+  std::thread RespL (response_listener, std::ref(current_user), online_users);
 
-  menu(current_user, online_users);
+  menu(current_user, online_users, all_users);
 
   ROL.join();
   UL.join();

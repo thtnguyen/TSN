@@ -6,7 +6,6 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-
 void user_publisher(user &current_user)
 {
   while(true)
@@ -65,7 +64,7 @@ void request_listener(user &current_user)
   request_mgr.deleteSubscriber();
 }
 
-void response_listener(user &current_user)
+void response_listener(user &current_user, std::vector<user> online_users)
 {
   TSN::responseSeq responseList;
   DDS::SampleInfoSeq infoSeq;
@@ -97,7 +96,18 @@ void response_listener(user &current_user)
      {
        if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id > 0)
        {
-         std::cout << "\n    UUID  : " << responseList[j].uuid << std::endl;
+         std::vector<user>::iterator it;
+         std::string name = "name not retrieved";
+         for(it = online_users.begin(); it != online_users.end(); it++)
+         {
+           if(it->uuid == responseList[j].uuid)
+           {
+             name = it->first_name + " " + it->last_name;
+             break;
+           }
+         }
+
+         std::cout << "\n    Name  : " << name << std::endl;
          std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
          std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
          std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
@@ -113,7 +123,7 @@ void response_listener(user &current_user)
     response_mgr.deleteSubscriber();
 }
 
-void user_listener(user &current_user, std::vector<user>& online_users)
+void user_listener(user &current_user, std::vector<user>& online_users, std::vector<user>& all_users)
 {
   TSN::user_informationSeq userinfoList;
   DDS::SampleInfoSeq infoSeq;
@@ -162,7 +172,38 @@ void user_listener(user &current_user, std::vector<user>& online_users)
          long date = userinfoList[j].date_of_birth;
          unsigned long long hp = userinfoList[j].number_of_highest_post;
 
-         online_users.push_back(user(fname, lname, date, uuid, interests, posts, hp));
+         user new_user = user(fname, lname, date, uuid, interests, posts, hp);
+         
+         //if user is already known, delete old record in vector
+         std::vector<user>::iterator it;
+         for(it = online_users.begin(); it != online_users.end(); it++)
+         {
+           if(strcmp(it->uuid, new_user.uuid) == 0)
+           {
+             online_users.erase(it);
+             break;
+           }
+         }
+         online_users.push_back(new_user);
+
+         for(it = all_users.begin(); it != all_users.end(); it++)
+         {
+           if(strcmp(it->uuid, new_user.uuid) == 0)
+           {
+             all_users.erase(it);
+             break;
+           }
+         }
+         all_users.push_back(new_user);
+         std::string home = getenv("HOME"); //.tsn is always stored in home directory
+         std::string path = home + "/.tsnusers";
+         std::ofstream out (path);
+         for(it = all_users.begin(); it != all_users.end(); it++)
+         {
+           write_user_data(*it, out, false);
+         }
+         out.close();
+
          /*std::cout << "=== [Subscriber] user information received :" << std::endl;
          std::cout << "    UUID  : " << userinfoList[j].uuid  << std::endl;
          std::cout << "    Name : " << userinfoList[j].first_name << " " << userinfoList[j].last_name << std::endl;*/
@@ -409,7 +450,7 @@ void publishResponse(user &current_user, TSN::request r)
   response_mgr.deleteParticipant();
 }
 
-user load_user_data(std::string filename)
+user load_user_data(std::string filename, std::vector<user>& all_users)
 {
   std::string home = getenv("HOME"); //.tsn is always stored in home directory
   std::string path = home + "/" + filename;
@@ -481,7 +522,44 @@ user load_user_data(std::string filename)
     posts.push_back(post(sn, body, doc));
   }
   in.close();
-  return user(first_name, last_name, date, myuuid, interests, posts, highest_pnum); 
+
+  user current_user = user(first_name, last_name, date, myuuid, interests, posts, highest_pnum);
+
+ //LOADING FORM TSNUSERS !!!!
+
+  path = home + "/.tsnusers";
+  in.open(path);
+  while(getline(in, temp)) 
+  {
+    interests.clear(); //!!
+    strcpy(myuuid, temp.c_str());
+
+    in >> first_name;
+    in >> last_name;
+
+    long date;
+    in >> temp;
+    stringstream ss (temp);
+    ss >> date;
+
+    unsigned long long highest_pnum;
+    in >> temp;
+    ss.str(temp);
+    ss.clear();
+    ss >> highest_pnum;
+    
+    while(getline(in, temp))
+    {
+      if(temp == "END INTERESTS")
+        break;
+          
+      interests.push_back(temp);    
+    }
+
+    all_users.push_back(user(first_name, last_name, date, myuuid, interests, posts, highest_pnum));
+  }
+  //LOADING FORM TSNUSERS END
+  return current_user; 
 }
 
 user create_new_user(std::string path)
@@ -584,11 +662,8 @@ void request_all_posts(user &current_user, user requested_user)
   request_mgr.deleteParticipant();
 }
 
-void write_user_data(user user_to_save, std::string file)
+void write_user_data(user user_to_save, std::ofstream& out, bool write_posts)
 {
-  std::string home = getenv("HOME"); //.tsn is always stored in home directory
-  std::string path = home + "/" + file;
-  std::ofstream out (path);
   out << user_to_save.uuid << std::endl;
   out << user_to_save.first_name << std::endl;
   out << user_to_save.last_name << std::endl;
@@ -602,13 +677,16 @@ void write_user_data(user user_to_save, std::string file)
   }
   out << "END INTERESTS" << std::endl;
 
-  std::vector<post>::iterator posts_it;
-  for(posts_it = user_to_save.posts.begin(); posts_it != user_to_save.posts.end(); posts_it++)
+  if(write_posts)
   {
-    //write_post_data(*it, out);
-    out << posts_it->get_sn() << std::endl;
-    out << posts_it->get_body() << std::endl;
-    out << posts_it->get_doc() << std::endl;
+    std::vector<post>::iterator posts_it;
+    for(posts_it = user_to_save.posts.begin(); posts_it != user_to_save.posts.end(); posts_it++)
+    {
+      //write_post_data(*it, out);
+      out << posts_it->get_sn() << std::endl;
+      out << posts_it->get_body() << std::endl;
+      out << posts_it->get_doc() << std::endl;
+    }
+    out << "END POSTS" << std::endl;
   }
-  out << "END POSTS" << std::endl;
 }
