@@ -1,33 +1,25 @@
 #include <thread>
-#include <sys/time.h>
+#include <iostream>
 
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
-#include <iomanip>
-#include <cstdio>
-
-//#include "controller.h"
 #include "controller.h"
 
 int main()
 {
   std::cout << "Welcome to The Social Network." << std::endl;
 
-  user current_user;
-  tsn_system sys = tsn_system(current_user);
+  user current_user; //user instance to construct a tsn_system
+  tsn_system sys = tsn_system(current_user); //tsn_system instance for view constructor
   sys.load_user_data();
 
-  view v = view(sys);
+  view v = view(sys); //view instance for controller constructor
 
   controller ctrl = controller(sys, v);
-  std::thread bg (&controller::background, &ctrl);
-  while(1)
+  std::thread bg (&controller::background, &ctrl); //starting the background threads
+
+  while(1) //executing user commands
   {
     ctrl.execute_cmd();
   }
-
-  bg.join();
 
   return 0;
 }

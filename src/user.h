@@ -9,7 +9,7 @@
 class user
 {
   private:
-    unsigned long long highest_pnum;
+    TSN::serial_number highest_pnum;
     
   public:
     std::string first_name;
@@ -23,9 +23,9 @@ class user
     user(std::string fname, std::string lname, long dob, char *id, std::vector<std::string>& i,
         std::vector<post>& p, unsigned long long hp);
 
-    unsigned long long get_highest_pnum();
-    void add_post(post p);
-    user& operator= (const user &rhs);
+    unsigned long long get_highest_pnum(); //returns the highest post number
+    void add_post(post p); //adds to the posts vector and increments highest post num
+    user& operator= (const user &rhs); //assignment operator overload
 };
 
 #endif

@@ -1,7 +1,6 @@
 #include "user.h"
 #include <cstring>
 #include <vector>
-#include <iostream> //debug info
 
 user::user()
 {
@@ -39,6 +38,7 @@ unsigned long long user::get_highest_pnum()
     return highest_pnum;
 }
 
+//assignment operator overload
 user &user::operator=(const user &rhs)
 {
     first_name = rhs.first_name;

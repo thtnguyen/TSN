@@ -30,10 +30,18 @@ void view::print_online()
     return;
   }
   std::vector<user>::iterator it;
+  std::cout << "==========ONLINE USERS==========" << std::endl;
   for(it = sys.online_users.begin(); it != sys.online_users.end(); it++)
   {
-    std::cout << "UUID  : " << it->uuid;
-    std::cout << "    Name : " << it->first_name << " " << it->last_name << std::endl;
+    std::cout << "Name : " << it->first_name << " " << it->last_name << std::endl;
+    std::cout << "Interests: ";
+
+    std::vector<std::string>::iterator interests_it;
+    for(interests_it = it->interests.begin(); interests_it != it->interests.end(); interests_it++)
+    {
+      std::cout << "  -- " <<*interests_it << std::endl;
+    }
+    std::cout << std::endl;
   }
 }
 
@@ -43,6 +51,7 @@ void view::show_user()
   int n = 0;
   std::cout << std::endl;
   
+  //listing all online users whose info can be retrieved and shown
   int on_list_size = static_cast<int> (sys.online_users.size());
   if(on_list_size > 0)
   {
@@ -58,6 +67,7 @@ void view::show_user()
     std::cin >> choice;
     for(it = sys.online_users.begin(); n < choice+1 ; it++, n++)
     {
+      //retrieving and printing out the chosen user's information
       if(n == choice)
         {
           std::cout << "Name: " << it->first_name << " " << it->last_name << std::endl;
@@ -89,11 +99,15 @@ void view::show_stats()
   std::vector<user>::iterator it;
   TSN::serial_number total_posts = 0;
   int total_num_users = 0; //number of known users
+
+  //calculating number of all known posts available and all known users
   for(it = sys.all_users.begin(); it != sys.all_users.end(); it++)
   {
     total_posts += it->get_highest_pnum();
     total_num_users++;
   }
+
+  //calculating the percentage of posts available on this node
   double content_percent = 0;
   if(sys.current_user.get_highest_pnum() > 0)
   {
