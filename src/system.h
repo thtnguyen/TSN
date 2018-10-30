@@ -25,6 +25,8 @@ class tsn_system
     //manager object to create data publishers/subscribers
     DDSEntityManager manager;
 
+    std::vector<message> private_messages;
+
     //constructor, takes a user object as a parameter to initialize current_user
     tsn_system(user &cu);
 
@@ -73,6 +75,10 @@ class tsn_system
 
     //prompts the user to either change their first name, last name, or interests
     void edit_user();
+
+    void message_listener();
+
+    void publish_message();
 
 };
 

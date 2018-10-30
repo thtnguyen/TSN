@@ -28,8 +28,6 @@ IDL_GENERATED_CPP=\
 
 IDL_GENERATED=${IDL_GENERATED_H} ${IDL_GENERATED_CPP}
 
-DEBUG= -g
-
 ${IDL_GENERATED}: idl/tsn.idl
 	${OSPL_HOME}/bin/idlpp -l cpp idl/tsn.idl
 
@@ -39,7 +37,7 @@ COMMON_H= src/CheckStatus.h src/DDSEntityManager.h src/user.h src/post.h src/sys
 
 
 tsn: ${IDL_GENERATED_H} ${IDL_GENERATED_CPP} ${COMMON_H} ${COMMON_CPP} src/main.cpp
-	g++ -o $@ ${CFLAGS} ${CXXFLAGS} ${DEBUG} $^ ${LIBS}
+	g++ -o $@ ${CFLAGS} ${CXXFLAGS} $^ ${LIBS}
 
 clean:
 	-rm -f exe

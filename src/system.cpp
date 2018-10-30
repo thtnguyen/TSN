@@ -13,6 +13,8 @@ tsn_system::tsn_system(user& cu)
    current_user = cu;
    std::vector<user> on_vector;
    online_users = on_vector;
+   std::vector<message> pm_vector;
+   private_messages = pm_vector;
 
    manager.createParticipant("TSN");
 
@@ -23,7 +25,7 @@ tsn_system::tsn_system(user& cu)
 void tsn_system::user_publisher()
 {
   //initializing data publisher and writer
- 
+
   TSN::user_informationTypeSupport_var mt = new TSN::user_informationTypeSupport();
   manager.registerType(mt.in());
 
@@ -39,36 +41,36 @@ void tsn_system::user_publisher()
   
  while(true)
   {
-  TSN::user_information userinfoInstance;
+    TSN::user_information userinfoInstance;
 
 
-  //initialize a user_information instance with info from current_user
-  userinfoInstance.first_name = DDS::string_dup((current_user.first_name).c_str());
-  userinfoInstance.last_name = DDS::string_dup((current_user.last_name).c_str());
-  strcpy(userinfoInstance.uuid, current_user.uuid);
-  userinfoInstance.number_of_highest_post = current_user.get_highest_pnum();
-  userinfoInstance.date_of_birth = current_user.date_of_birth;
+    //initialize a user_information instance with info from current_user
+    userinfoInstance.first_name = DDS::string_dup((current_user.first_name).c_str());
+    userinfoInstance.last_name = DDS::string_dup((current_user.last_name).c_str());
+    strcpy(userinfoInstance.uuid, current_user.uuid);
+    userinfoInstance.number_of_highest_post = current_user.get_highest_pnum();
+    userinfoInstance.date_of_birth = current_user.date_of_birth;
 
-  //get length of the interests vector so we can set the sequence length of user_information
-  int n = 0;
-  std::vector<std::string>::iterator it;
-  for(it = current_user.interests.begin(); it != current_user.interests.end(); it++)
-  {
-    n++;
-  }
-  userinfoInstance.interests.length(n);
+    //get length of the interests vector so we can set the sequence length of user_information
+    int n = 0;
+    std::vector<std::string>::iterator it;
+    for(it = current_user.interests.begin(); it != current_user.interests.end(); it++)
+    {
+      n++;
+    }
+    userinfoInstance.interests.length(n);
 
-  //store current user's interests in the sequence
-  n = 0;
-  for(it = current_user.interests.begin(); it != current_user.interests.end(); it++, n++)
-  {
-    userinfoInstance.interests[n] = DDS::string_dup(it->c_str());
-  }
+    //store current user's interests in the sequence
+    n = 0;
+    for(it = current_user.interests.begin(); it != current_user.interests.end(); it++, n++)
+    {
+      userinfoInstance.interests[n] = DDS::string_dup(it->c_str());
+    }
 
-  ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
-  checkStatus(status, "user_informationDataWriter::write");
+    ReturnCode_t status = userinfoWriter->write(userinfoInstance, DDS::HANDLE_NIL);
+    checkStatus(status, "user_informationDataWriter::write");
 
-  sleep(30);
+    sleep(30);
   }
 
 }
@@ -838,4 +840,49 @@ void tsn_system::edit_user()
 
   write_user_data(current_user, out, true);
   out.close();
+}
+
+void message_listener(){
+  //initializing data readers and subscribers
+  TSN::private_messageSeq messageList;
+  DDS::SampleInfoSeq infoSeq;
+
+  DDSEntityManager msg_mgr;
+  msg_mgr.createParticipant("TSN");
+
+  TSN::private_messageTypeSupport_var msgts = new TSN::private_messageTypeSupport();
+  msg_mgr.registerType(msgts.in());
+
+  char msg_topic[] = "message";
+
+  msg_mgr.createTopic(msg_topic);
+  msg_mgr.createSubscriber();
+  msg_mgr.createReader();
+
+  DDS::DataReader_var msg_data =  msg_mgr.getReader();
+  TSN::private_messageDataReader_var messageReader = TSN::private_messageDataReader::_narrow(msg_data.in());
+  checkHandle(messageReader.in(), "private_messageDataReader::_narrow");
+
+  ReturnCode_t message_status = -1;
+
+  //waiting for messages
+  while(true)
+  {
+    message_status = messageReader->take(responseList, infoSeq, LENGTH_UNLIMITED, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    checkStatus(message_status, "private_messageDataReader::take");
+    
+    for (DDS::ULong j = 0; j < messageList.length(); j++)
+     {
+       //ignore the message if it's sent from the current user
+       if((strcmp(messageList[j].sender_uuid, current_user.uuid) != 0))
+       {
+         //construct a message object
+         private_messages.push_back(/*new message object*/);
+       }
+		 }
+    message_status = messageReader->return_loan(messageList, infoSeq);
+    checkStatus(message_status, "private_message_informationDataReader::return_loan");
+    sleep(1);
+  }
+
 }
