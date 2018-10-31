@@ -57,6 +57,12 @@ void controller::execute_cmd()
     {
       viewer.show_stats();
     }
+    if(state == 8){
+      sys.publish_message();
+    }
+    if(state == 9){
+      viewer.print_messages();
+    }
     
 }
 void controller::background()

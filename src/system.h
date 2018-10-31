@@ -79,7 +79,7 @@ class tsn_system
 
     void message_listener();
 
-    //void publish_message();
+    void publish_message();
 
 };
 

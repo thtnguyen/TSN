@@ -1,5 +1,6 @@
 #include <iomanip>
 #include "view.h"
+#include "message.h"
 
 void view::print_main_menu()
 {
@@ -11,6 +12,8 @@ void view::print_main_menu()
   std::cout << "(5) Edit" << std::endl;
   std::cout << "(6) Resync" << std::endl;
   std::cout << "(7) Statistics" << std::endl;
+  std::cout << "(8) Send PM" << std::endl;
+  std::cout << "(9) View PMs" << std::endl;
   std::cout << "(0) Exit" << std::endl;
 }
 
@@ -117,4 +120,29 @@ void view::show_stats()
   std::cout << "\nThere are " << total_num_users << " other nodes known." << std::endl;
   std::cout << "This node contains " << fixed << std::setprecision(2) << content_percent << "\% of posts available on the TSN network." << std::endl;
 
+}
+
+void view::print_messages()
+{
+  std::vector<message>::iterator msg_it = sys.private_messages.begin();
+  std::vector<user>::iterator user_it;
+
+  std::string name = "unable to retrieve name";
+  char sender_uuid[TSN::UUID_SIZE];
+
+  for(;msg_it != sys.private_messages.end(); msg_it++)
+  {
+    strcpy(sender_uuid, msg_it->get_sender_uuid());
+    for(user_it = sys.online_users.begin(); user_it != sys.online_users.end(); user_it++)
+    {
+      if(strcmp(user_it->uuid, sender_uuid) == 0)
+      {
+        name = user_it->first_name + " " + user_it->last_name;
+        break;
+      }
+    }
+    std::cout << "\n  === From    : " << name << " ===" << std::endl;
+    std::cout << "    Message : " << msg_it->get_body() << std::endl;
+
+  }
 }
