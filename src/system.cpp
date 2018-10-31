@@ -617,7 +617,8 @@ void tsn_system::load_user_data()
     ss.clear();
     ss >> doc;
 
-    posts.push_back(post(sn, body, doc));
+    char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+    posts.push_back(post(sn, body, doc, false, -1, id));
   }
   in.close();
 
@@ -784,7 +785,8 @@ void tsn_system::create_post()
   long date = tp.tv_sec;
 
   //saving the post in the current_user object
-  post p = post(sn, message, date);
+  char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+  post p = post(sn, message, date, false, -1, id);
   current_user.add_post(p);
 
   //writing the new post to .tsn file
