@@ -12,6 +12,7 @@ void controller::execute_cmd()
 
     if(state == 0) //exit
     {
+      std::cout << "Exiting normally" << std::endl;
       exit(0);
     }		
     if(state == 1) //create post
@@ -73,10 +74,12 @@ void controller::background()
   std::thread ROL (&tsn_system::refresh_online_list, &sys);
   std::thread ReqL(&tsn_system::request_listener, &sys);
   std::thread RespL (&tsn_system::response_listener, &sys);
+  std::thread MessL(&tsn_system::message_listener, &sys);
 
   ROL.join();
   UL.join();
   UP.join();
   ReqL.join();
   RespL.join();
+  MessL.join();
 }

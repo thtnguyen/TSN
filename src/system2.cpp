@@ -269,7 +269,7 @@ void tsn_system::user_listener()
          }
          all_users.push_back(new_user);
          std::string home = getenv("HOME"); //.tsn is always stored in home directory
-         std::string path = home + "/.tsnusers";
+         std::string path = home + "/.tsnusers2";
          std::ofstream out (path);
          for(it = all_users.begin(); it != all_users.end(); it++)
          {
@@ -508,7 +508,7 @@ void tsn_system::publish_response(TSN::request r)
 void tsn_system::load_user_data()
 {
   std::string home = getenv("HOME"); //.tsn and .tsnusers is always stored in home directory
-  std::string path = home + "/.tsnusers";
+  std::string path = home + "/.tsnusers2";
   std::ifstream in(path);
 
   std::string first_name;
@@ -553,7 +553,7 @@ void tsn_system::load_user_data()
   in.close();
   
   //now attempting to load info of the current user/node from .tsn
-  path = home + "/.tsn";
+  path = home + "/.tsn2";
   in.open(path);
 
   //the .tsn file does not exist so obtain data directly from user
@@ -761,7 +761,7 @@ void tsn_system::write_user_data(user user_to_save, std::ofstream& out, bool wri
 void tsn_system::resync()
 {
   std::string home = getenv("HOME");
-  std::string path = home + "/.tsnusers";
+  std::string path = home + "/.tsnusers2";
   std::remove(path.c_str());
 
   online_users.clear();
@@ -791,7 +791,7 @@ void tsn_system::create_post()
 
   //writing the new post to .tsn file
   std::string home = getenv("HOME");
-  std::string path = home + "/.tsn";
+  std::string path = home + "/.tsn2";
   std::ofstream out (path);
 
   write_user_data(current_user, out, true);
@@ -837,7 +837,7 @@ void tsn_system::edit_user()
 
   //writing edited information to .tsn file
   std::string home = getenv("HOME");
-  std::string path = home + "/.tsn";
+  std::string path = home + "/.tsn2";
   std::ofstream out (path);
 
   write_user_data(current_user, out, true);
@@ -882,8 +882,10 @@ void tsn_system::message_listener(){
          //variables to construct new message object
          char sender_uuid[TSN::UUID_SIZE];
          strcpy(sender_uuid, messageList[j].sender_uuid);
-         string msg = DDS::string_dup(messageList[j].message_body);
+         std::string msg = DDS::string_dup(messageList[j].message_body);
+         std::cout << "in message_listener, msg: " << msg << std::endl;
          long doc = messageList[j].date_of_creation;
+
 
          std::cout << "You have received a new private message." << std::endl;
          private_messages.push_back(message(sender_uuid, current_user.uuid, msg, doc));
@@ -955,12 +957,15 @@ void tsn_system::publish_message()
 
   std::string msg_body;
   std::cout << "Enter the message to send: " << std::endl;
-  getline(cin, msg_body);
   cin.ignore();
+  getline(cin, msg_body);
 
   strcpy(pm.sender_uuid, current_user.uuid);
   strcpy(pm.receiver_uuid, receiver_uuid);
   pm.message_body = DDS::string_dup(msg_body.c_str());
+
+  std::cout << "publish_message, pm.message_body: " << pm.message_body<< std::endl;
+
 
   struct timeval tp;
   gettimeofday(&tp, NULL);
