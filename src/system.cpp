@@ -882,7 +882,7 @@ void tsn_system::message_listener(){
          //variables to construct new message object
          char sender_uuid[TSN::UUID_SIZE];
          strcpy(sender_uuid, messageList[j].sender_uuid);
-         string msg = DDS::string_dup(messageList[j].message_body);
+         std::string msg = DDS::string_dup(messageList[j].message_body);
          long doc = messageList[j].date_of_creation;
 
          std::cout << "You have received a new private message." << std::endl;
@@ -955,8 +955,9 @@ void tsn_system::publish_message()
 
   std::string msg_body;
   std::cout << "Enter the message to send: " << std::endl;
-  getline(cin, msg_body);
+
   cin.ignore();
+  getline(cin, msg_body);
 
   strcpy(pm.sender_uuid, current_user.uuid);
   strcpy(pm.receiver_uuid, receiver_uuid);

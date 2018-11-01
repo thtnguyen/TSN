@@ -12,7 +12,6 @@ void controller::execute_cmd()
 
     if(state == 0) //exit
     {
-      std::cout << "Exiting normally" << std::endl;
       exit(0);
     }		
     if(state == 1) //create post

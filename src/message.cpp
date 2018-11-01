@@ -6,7 +6,7 @@ message::message()
     creation_date = 0;
 }
 
-message::message(char *sender_uuid, char *receiver_uuid, std::string meesage_body, long creation_date)
+message::message(char *sender_uuid, char *receiver_uuid, std::string message_body, long creation_date)
 {
     strcpy(this->sender_uuid, sender_uuid);
     strcpy(this->receiver_uuid, receiver_uuid);
