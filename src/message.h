@@ -15,7 +15,7 @@ class message
         
         //this is a default constructor
         message();
-        message(char *sender_uuid, char *receiver_uuid, std::string meesage_body, long creation_date);
+        message(char *sender_uuid, char *receiver_uuid, std::string message_body, long creation_date);
 
         char* get_sender_uuid();
         char* get_reciever_uuid();
