@@ -130,7 +130,6 @@ void tsn_system::request_listener()
 
 void tsn_system::response_listener()
 {
-
   //initializing data readers and subscribers
   TSN::responseSeq responseList;
   DDS::SampleInfoSeq infoSeq;
@@ -152,6 +151,9 @@ void tsn_system::response_listener()
   checkHandle(responseReader.in(), "responseDataReader::_narrow");
 
   ReturnCode_t response_status = -1;
+
+  //this is to be used to see if a post is posted by user interest
+  int printed_post = 0;
   
   //while loop constantly listens for any responses sent over the network
   while(true)
@@ -161,25 +163,64 @@ void tsn_system::response_listener()
     
     for (DDS::ULong j = 0; j < responseList.length(); j++)
      {
-       //ignore the response if it's sent from the current user
-       if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id != 0)
+       if(choice == "yes")
        {
-         //retrieving the corresponding name to the responder's uuid; name is initialized in case the
-         //online list was refreshed and the responding user's info hasn't been re-published yet
-         std::vector<user>::iterator it;
-         std::string name = "unable to retrieve name";
-         for(it = online_users.begin(); it != online_users.end(); it++)
+         //ignore the response if it's sent from the current user
+          if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id != 0)
+          {
+            //retrieving the corresponding name to the responder's uuid; name is initialized in case the
+            //online list was refreshed and the responding user's info hasn't been re-published yet
+            std::vector<user>::iterator it;
+            std::string name = "unable to retrieve name";
+            for(it = online_users.begin(); it != online_users.end(); it++)
+            {
+              if(strcmp(it->uuid, responseList[j].uuid) == 0)
+              {
+                name = it->first_name + " " + it->last_name;
+                break;
+              }
+            }
+         //this will get us our interest post
+         string curr_interests = "nothing";
+         string curr_post = DDS::string_dup((responseList[j].post_body));
+         int interest_exists = 0;
+         unsigned k;
+         for(k = 0; k < current_user.interests.size(); k++)
          {
-           if(strcmp(it->uuid, responseList[j].uuid) == 0)
-           {
-             name = it->first_name + " " + it->last_name;
-             break;
-           }
-         }
-         std::cout << "\n    Name  : " << name << std::endl;
-         std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
-         std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
-         std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
+           curr_interests = current_user.interests[k];
+           interest_exists = curr_post.find(curr_interests);
+           if(interest_exists > 0)
+            {
+              std::cout << "\n    Name  : " << name << std::endl;
+              std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
+              std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
+              std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
+              std::cout << "    Sorted by your interest of: " << curr_interests << std::endl;
+              printed_post++;
+            }
+          }
+        }
+       }else{
+          //ignore the response if it's sent from the current user
+          if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id != 0)
+          {
+            //retrieving the corresponding name to the responder's uuid; name is initialized in case the
+            //online list was refreshed and the responding user's info hasn't been re-published yet
+            std::vector<user>::iterator it;
+            std::string name = "unable to retrieve name";
+            for(it = online_users.begin(); it != online_users.end(); it++)
+            {
+              if(strcmp(it->uuid, responseList[j].uuid) == 0)
+              {
+                name = it->first_name + " " + it->last_name;
+                break;
+              }
+            }
+              std::cout << "\n    Name  : " << name << std::endl;
+              std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
+              std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
+              std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
+          }
        }
 		 }
     response_status = responseReader->return_loan(responseList, infoSeq);

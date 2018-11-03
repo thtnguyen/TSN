@@ -28,7 +28,7 @@ void controller::execute_cmd()
       long ret_value = 0;
 
       //check if any requests were made in the past 60 seconds
-      if(last_request_time == 0 || current_time - last_request_time > 60)
+      if(last_request_time == 0 || current_time - last_request_time > 1)
       {
         ret_value = sys.publish_request();
         if(ret_value > 0)

@@ -13,6 +13,9 @@
 
 class tsn_system
 {
+
+  private: 
+    string choice = "no";
   public:
     //stores information about the user on this instance of the program
     user current_user; 
