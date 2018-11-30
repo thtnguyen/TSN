@@ -15,7 +15,7 @@ class tsn_system
 {
 
   private: 
-    string choice = "no";
+    string choice = "no"; 
   public:
     //stores information about the user on this instance of the program
     user current_user; 
@@ -50,7 +50,7 @@ class tsn_system
     long publish_request(); 
 
     //takes a request as a parameter and publishes a response to that request if needed
-    void publish_response(TSN::request r); 
+    void publish_response(TSN::request r, bool thread); 
 
     //loads data from the .tsn and .tsnusers file into current_user and all_users
     void load_user_data(); 
@@ -84,6 +84,10 @@ class tsn_system
 
     void publish_message();
 
+    post recent_post;
+    char recent_uuid[TSN::UUID_SIZE];
+    void thread_post(post p);
+    void create_reply(post parent, char* parent_uuid);
 };
 
 #endif

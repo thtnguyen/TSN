@@ -5,9 +5,7 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <thread>
 #include <vector>
-#include "user.h"
-#include <string>
-#include <iostream>
+
 #include "system.h"
 
 tsn_system::tsn_system(user& cu)
@@ -17,6 +15,10 @@ tsn_system::tsn_system(user& cu)
    online_users = on_vector;
    std::vector<message> pm_vector;
    private_messages = pm_vector;
+
+   char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+   strcpy(recent_uuid, id);
+   recent_post = post(0," ", 0, false, 0, id);
 
    manager.createParticipant("TSN");
 
@@ -47,7 +49,7 @@ void tsn_system::user_publisher()
 
 
     //initialize a user_information instance with info from current_user
-    userinfoInstance.first_name = DDS::string_dup((current_user.first_name).c_str());
+    userinfoInstance.first_name = DDS::string_dup((current_user.first_name).c_str()); //write function to handle
     userinfoInstance.last_name = DDS::string_dup((current_user.last_name).c_str());
     strcpy(userinfoInstance.uuid, current_user.uuid);
     userinfoInstance.number_of_highest_post = current_user.get_highest_pnum();
@@ -78,6 +80,7 @@ void tsn_system::user_publisher()
 }
 void tsn_system::request_listener()
 {
+ 
   //initializing the data readers and subscribers
   TSN::requestSeq requestList;
   DDS::SampleInfoSeq infoSeq;
@@ -114,7 +117,7 @@ void tsn_system::request_listener()
           //if one of the node requests is meant for the current user, then publish a response to it
           if(strcmp(requestList[j].user_requests[i].fulfiller_uuid, current_user.uuid) == 0)
           {
-            publish_response(requestList[j]);
+            publish_response(requestList[j], false);
           }
       }  
     } 
@@ -192,6 +195,12 @@ void tsn_system::response_listener()
            interest_exists = curr_post.find(curr_interests);
            if(interest_exists > 0)
             {
+              //storing the most recent post in case of replies
+              char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+              strcpy(recent_uuid, responseList[j].uuid);
+              std::string body = DDS::string_dup(responseList[j].post_body);
+              recent_post = post(responseList[j].post_id, body, 0, false, 0, id);
+
               std::cout << "\n    Name  : " << name << std::endl;
               std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
               std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
@@ -201,27 +210,88 @@ void tsn_system::response_listener()
             }
           }
         }
-       }else{
-          //ignore the response if it's sent from the current user
-          if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id != 0)
+       }
+       else
+       {
+          std::vector<post>::iterator post_it;
+          for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++)
           {
+            if(strcmp(post_it->get_parent_uuid(), responseList[j].uuid) == 0 && post_it->get_parent_sn() == responseList[j].post_id)
+            {
+              TSN::node_request nodeReqInstance;
+              nodeReqInstance.requested_posts.length(1);
+              nodeReqInstance.requested_posts[0] = post_it->get_sn();
+              strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
+
+              TSN::request reqInstance;
+              reqInstance.user_requests.length(1);
+              reqInstance.user_requests[0] = nodeReqInstance;
+              strcpy(reqInstance.uuid, current_user.uuid);
+
+              publish_response(reqInstance, true);
+              break;
+            }
+          }
+          if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0))
+          {
+            char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+            strcpy(recent_uuid, responseList[j].uuid);
+            std::string body = DDS::string_dup(responseList[j].post_body);
+            recent_post = post(responseList[j].post_id, body, 0, false, 0, id);
+
             //retrieving the corresponding name to the responder's uuid; name is initialized in case the
             //online list was refreshed and the responding user's info hasn't been re-published yet
             std::vector<user>::iterator it;
             std::string name = "unable to retrieve name";
-            for(it = online_users.begin(); it != online_users.end(); it++)
-            {
-              if(strcmp(it->uuid, responseList[j].uuid) == 0)
+            if(strcmp(responseList[j].uuid, current_user.uuid)==0)
+              name = current_user.first_name + " " + current_user.last_name;
+            else
+            {  
+              for(it = online_users.begin(); it != online_users.end(); it++)
               {
-                name = it->first_name + " " + it->last_name;
+                if(strcmp(it->uuid, responseList[j].uuid) == 0)
+                {
+                  name = it->first_name + " " + it->last_name;
+                  break;
+                }
+              }
+            }
+
+            std::cout << "\n    Name  : " << name << std::endl;
+            std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
+            std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
+            std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
+          }
+          else if(strcmp(responseList[j].parent_uuid, current_user.uuid) == 0) //check if the received post is a child of the current user's posts
+          {
+            for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++) //finding the post
+            {
+              if(responseList[j].parent_post_id == post_it->get_sn())
+              {
+                post_it->set_child_uuid(responseList[j].uuid); //setting approriate child post information fields
+                post_it->set_child_post(responseList[j].post_id);
+
+                if(post_it->get_parent_sn() > 0) //if this post has it's own parent, send a response out to the parent
+                  thread_post(*post_it);
+                else
+                {//sending out the post, which will start of the printing the entire thread/chain of posts
+                  TSN::node_request nodeReqInstance;
+                  nodeReqInstance.requested_posts.length(1);
+                  nodeReqInstance.requested_posts[0] = post_it->get_sn();
+                  strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
+
+                  TSN::request reqInstance;
+                  reqInstance.user_requests.length(1);
+                  reqInstance.user_requests[0] = nodeReqInstance;
+                  strcpy(reqInstance.uuid, current_user.uuid);
+
+                  publish_response(reqInstance, true);
+                }
                 break;
               }
             }
-              std::cout << "\n    Name  : " << name << std::endl;
-              std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
-              std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
-              std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
           }
+
        }
 		 }
     response_status = responseReader->return_loan(responseList, infoSeq);
@@ -335,10 +405,6 @@ void tsn_system::user_listener()
 
 long tsn_system::publish_request()
 {
-  //We are going to get a choice from the user to see if they want to see interest
-  std::cout << "Do you want to sort by interests (yes or no)" << std::endl;
-  getline(cin, choice);
-
   //initializing data publisher and writer
   DDSEntityManager request_mgr;
 
@@ -469,7 +535,7 @@ long tsn_system::publish_request()
  
   ReturnCode_t status = requestWriter->write(requestInstance, DDS::HANDLE_NIL);
   checkStatus(status, "requestDataWriter::write");
-  std::cout << " success" << std::endl;
+  std::cout << " successfully published" << std::endl;
 
   struct timeval tp;
   gettimeofday(&tp, NULL);
@@ -487,7 +553,7 @@ long tsn_system::publish_request()
   return date; 
 }
 
-void tsn_system::publish_response(TSN::request r)
+void tsn_system::publish_response(TSN::request r, bool thread)
 {
 
   //initializing data publisher and writer
@@ -523,7 +589,7 @@ void tsn_system::publish_response(TSN::request r)
       TSN::serial_number serial_num = my_node_req.requested_posts[j];
       long doc = 0;
 
-      std::vector<post>::iterator it;
+      std::vector<post>::iterator it; //iterating through all of the current user's posts
       for(it = current_user.posts.begin(); it != current_user.posts.end(); it++)
       {
         if(my_node_req.requested_posts[j] == it->get_sn())
@@ -531,6 +597,10 @@ void tsn_system::publish_response(TSN::request r)
           body = it->get_body();
           serial_num = it->get_sn();
           doc = it->get_doc();
+
+          if(thread)
+            body += "\n\t\t|\n\t\t|";
+
           break;
         }
       }
@@ -538,6 +608,7 @@ void tsn_system::publish_response(TSN::request r)
       responseInstance.post_id = serial_num;
       responseInstance.date_of_creation = doc;
       responseInstance.post_body = DDS::string_dup(body.c_str());
+      responseInstance.parent_post_id = 0;
 
       ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
       checkStatus(status, "responseDataWriter::write");
@@ -664,7 +735,7 @@ void tsn_system::load_user_data()
     ss >> doc;
 
     char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
-    posts.push_back(post(sn, body, doc, false, -1, id));
+    posts.push_back(post(sn, body, doc, false, 0, id));
   }
   in.close();
 
@@ -832,7 +903,49 @@ void tsn_system::create_post()
 
   //saving the post in the current_user object
   char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
-  post p = post(sn, message, date, false, -1, id);
+  post p = post(sn, message, date, false, 0, id);
+  current_user.add_post(p);
+
+  //sending ourselves a request to publish the new post on the network
+  //this results in an instant stream of posts on the interface
+  TSN::node_request nodeReqInstance;
+  nodeReqInstance.requested_posts.length(1);
+  nodeReqInstance.requested_posts[0] = p.get_sn();
+  strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
+
+  TSN::request reqInstance;
+  reqInstance.user_requests.length(1);
+  reqInstance.user_requests[0] = nodeReqInstance;
+  strcpy(reqInstance.uuid, current_user.uuid);
+
+  publish_response(reqInstance, false);
+  std::cout << "Post published--" << std::endl;
+  //writing the new post to .tsn file
+  std::string home = getenv("HOME");
+  std::string path = home + "/.tsn1";
+  std::ofstream out (path);
+
+  write_user_data(current_user, out, true);
+  out.close();
+
+}
+
+void tsn_system::create_reply(post parent, char* parent_uuid)
+{
+  //calculating the new post serial number 
+  TSN::serial_number sn = (TSN::serial_number) current_user.get_highest_pnum()+1;
+
+  std::string message;
+  std::cout << "Enter your reply: " << std::endl;
+  getline(cin, message);
+
+  //getting epoch time in seconds
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  long date = tp.tv_sec;
+
+  //saving the post in the current_user object
+  post p = post(sn, message, date, true, parent.get_sn() ,parent_uuid);
   current_user.add_post(p);
 
   //writing the new post to .tsn file
@@ -842,6 +955,39 @@ void tsn_system::create_post()
 
   write_user_data(current_user, out, true);
   out.close();
+
+  thread_post(p);
+
+}
+
+void tsn_system::thread_post(post p)
+{
+  DDSEntityManager response_mgr;
+  response_mgr.createParticipant("TSN");
+
+  TSN::responseTypeSupport_var mt = new TSN::responseTypeSupport();
+  response_mgr.registerType(mt.in());
+
+  char response_topic[] = "response";
+  response_mgr.createTopic(response_topic);
+
+  response_mgr.createPublisher();
+  response_mgr.createWriter(false);
+
+  DDS::DataWriter_var dw = response_mgr.getWriter();
+  TSN::responseDataWriter_var responseWriter = TSN::responseDataWriter::_narrow(dw.in());
+
+  TSN::response responseInstance;
+
+  strcpy(responseInstance.uuid, current_user.uuid);
+  responseInstance.post_id = p.get_sn();
+  responseInstance.date_of_creation = p.get_doc();
+  responseInstance.post_body = DDS::string_dup(p.get_body().c_str());
+  responseInstance.parent_post_id = p.get_parent_sn();
+  strcpy(responseInstance.parent_uuid, p.get_parent_uuid());
+
+  ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
+  checkStatus(status, "responseDataWriter::write");
 
 }
 
@@ -929,7 +1075,6 @@ void tsn_system::message_listener(){
          char sender_uuid[TSN::UUID_SIZE];
          strcpy(sender_uuid, messageList[j].sender_uuid);
          std::string msg = DDS::string_dup(messageList[j].message_body);
-         std::cout << "in message_listener, msg: " << msg << std::endl;
          long doc = messageList[j].date_of_creation;
 
          std::cout << "You have received a new private message." << std::endl;
@@ -1002,6 +1147,7 @@ void tsn_system::publish_message()
 
   std::string msg_body;
   std::cout << "Enter the message to send: " << std::endl;
+
   cin.ignore();
   getline(cin, msg_body);
 
@@ -1009,13 +1155,10 @@ void tsn_system::publish_message()
   strcpy(pm.receiver_uuid, receiver_uuid);
   pm.message_body = DDS::string_dup(msg_body.c_str());
 
-  std::cout << "publish_message, pm.message_body: " << pm.message_body<< std::endl;
-
   struct timeval tp;
   gettimeofday(&tp, NULL);
   long date = tp.tv_sec;
   pm.date_of_creation = date;
-
 
   ReturnCode_t status = messageWriter->write(pm, DDS::HANDLE_NIL);
   checkStatus(status, "private_messageDataWriter::write");

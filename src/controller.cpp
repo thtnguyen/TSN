@@ -4,21 +4,20 @@
 
 void controller::execute_cmd()
 {
-    viewer.print_main_menu();
-    int state = -1;
-    std::cout << "$ ";
+    string state = " ";
+    std::cout << ">> ";
     std::cin >> state;
     cin.ignore();
 
-    if(state == 0) //exit
+    if(state == "exit") //exit
     {
       exit(0);
     }		
-    if(state == 1) //create post
+    if(state == "post") //create post
     {
       sys.create_post(); 
     }
-    if(state == 2) //publish a request
+    if(state == "request") //publish a request
     {
       //get the current epoch time
       struct timeval tp;
@@ -30,40 +29,51 @@ void controller::execute_cmd()
       if(last_request_time == 0 || current_time - last_request_time > 1)
       {
         ret_value = sys.publish_request();
+        assert(ret_value > 0 || ret_value == -1);
+        
         if(ret_value > 0)
           last_request_time = ret_value;
       }
       else
         std::cout << "\nYou can only publish a request once every 60 seconds." << std::endl;
     }
-    if(state == 3) //list users
+    if(state == "list") //list users
     {
       viewer.print_online();
     }
-    if(state == 4) //show user
+    if(state == "show") //show user
     {
       viewer.show_user();
     }
-    if(state == 5) //edit user info
+    if(state == "edit") //edit user info
     {
       viewer.print_edit_menu();
       sys.edit_user();
     }
-    if(state == 6) //resync
+    if(state == "resync") //resync
     {
       sys.resync();
     }
-    if(state == 7) //statistics
+    if(state == "stats") //statistics
     {
       viewer.show_stats();
     }
-    if(state == 8){
+    if(state == "message")
+    {
       sys.publish_message();
     }
-    if(state == 9){
+    if(state == "inbox")
+    {
       viewer.print_messages();
     }
-    
+    if(state == "reply")
+    {
+      sys.create_reply(sys.recent_post, sys.recent_uuid);
+    }
+    if(state == "help")
+    {
+      viewer.print_help_menu();
+    }
 }
 void controller::background()
 { 

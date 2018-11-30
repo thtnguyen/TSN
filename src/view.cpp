@@ -2,19 +2,24 @@
 #include "view.h"
 #include "message.h"
 
-void view::print_main_menu()
+
+void view::print_start_menu()
 {
-  std::cout << "\nSelect what you want to do:" << std::endl << std::endl;
-  std::cout << "(1) Add A Post" << std::endl;
-  std::cout << "(2) Publish A Request" << std::endl;
-  std::cout << "(3) List Users" << std::endl;
-  std::cout << "(4) Show User" << std::endl;
-  std::cout << "(5) Edit" << std::endl;
-  std::cout << "(6) Resync" << std::endl;
-  std::cout << "(7) Statistics" << std::endl;
-  std::cout << "(8) Send PM" << std::endl;
-  std::cout << "(9) View PMs" << std::endl;
-  std::cout << "(0) Exit" << std::endl;
+  std::cout << "\nWelcome to The Social Network! \nEnter \"help\" to see all possible commands." << std::endl;
+}
+void view::print_help_menu()
+{
+  std::cout << "\nCommands:" << std::endl << std::endl;
+  std::cout << "post - publish a post to The Social Network" << std::endl;
+  std::cout << "request - request a post from a user" << std::endl;
+  std::cout << "list - list all users currently online" << std::endl;
+  std::cout << "show - show information of a specific online user" << std::endl;
+  std::cout << "edit - edit your personal information" << std::endl;
+  std::cout << "resync - wipe all data and statistics" << std::endl;
+  std::cout << "stats - shows how many other users are known and /% of posts on TSN that you own" << std::endl;
+  std::cout << "message - send a private message to another online user" << std::endl;
+  std::cout << "inbox - view your private message inbox" << std::endl;
+  std::cout << "exit - exit the network" << std::endl;
 }
 
 void view::print_edit_menu()
