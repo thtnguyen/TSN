@@ -85,7 +85,7 @@ class tsn_system
     char recent_uuid[TSN::UUID_SIZE];
     void thread_post(post p);
     void create_reply(post parent, char* parent_uuid);
-    std::string choice = "no";
+    std::string choice = "none";
 };
 
 #endif
