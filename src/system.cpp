@@ -155,7 +155,7 @@ void tsn_system::response_listener()
   checkHandle(responseReader.in(), "responseDataReader::_narrow");
 
   ReturnCode_t response_status = -1;
-
+  
   //while loop constantly listens for any responses sent over the network
   while(true)
   {
@@ -173,17 +173,18 @@ void tsn_system::response_listener()
             nodeReqInstance.requested_posts.length(1);
             nodeReqInstance.requested_posts[0] = post_it->get_sn();
             strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-            
+
             TSN::request reqInstance;
             reqInstance.user_requests.length(1);
             reqInstance.user_requests[0] = nodeReqInstance;
             strcpy(reqInstance.uuid, current_user.uuid);
-            
+
             publish_response(reqInstance, true);
             break;
           }
         }
-        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0))
+        char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
+        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0) && ((strcmp(responseList[j].uuid, current_user.uuid) != 0) || strcmp(id, responseList[j].parent_uuid) == 0))
         {
           char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
           strcpy(recent_uuid, responseList[j].uuid);
@@ -207,7 +208,7 @@ void tsn_system::response_listener()
               }
             }
           }
-          if(choice == "no")
+          if(choice == "none")
           {
             std::cout << "\n    Name  : " << name << std::endl;
             std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
@@ -216,13 +217,14 @@ void tsn_system::response_listener()
           }
           else
           {
-            std::string curr_post = DDS::string_dup(responseList[j].post_body);
+            string curr_post = DDS::string_dup(responseList[j].post_body);
 
             std::string::iterator str_it;
             for(str_it = curr_post.begin(); str_it != curr_post.end(); str_it++)
               *str_it = tolower(*str_it); //make post all lowercase for interest matching
 
             int interest_exists = curr_post.find(choice);
+            //std::cout << "choice is " << choice << " and interest_exists is " << interest_exists << std::endl;
             if(interest_exists >= 0)
             {
               std::cout << "\n    Name  : " << name << std::endl;
@@ -249,12 +251,12 @@ void tsn_system::response_listener()
                 nodeReqInstance.requested_posts.length(1);
                 nodeReqInstance.requested_posts[0] = post_it->get_sn();
                 strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-                
+
                 TSN::request reqInstance;
                 reqInstance.user_requests.length(1);
                 reqInstance.user_requests[0] = nodeReqInstance;
                 strcpy(reqInstance.uuid, current_user.uuid);
-                
+
                 publish_response(reqInstance, true);
               }
               break;
@@ -308,9 +310,10 @@ void tsn_system::user_listener()
      {
        if(strcmp(userinfoList[j].uuid, current_user.uuid) != 0)
        {
+
          char uuid[TSN::UUID_SIZE];
          strcpy(uuid, userinfoList[j].uuid);
-         
+
          std::vector<std::string> interests;
          std::string interest;
          for(unsigned int i = 0; i < userinfoList[j].interests.length(); i++)
@@ -320,13 +323,14 @@ void tsn_system::user_listener()
          }
          std::vector<post> posts;
 
-         std::string fname = DDS::string_dup(userinfoList[j].first_name);
-         std::string lname = DDS::string_dup(userinfoList[j].last_name);
+         string fname = DDS::string_dup(userinfoList[j].first_name);
+         string lname = DDS::string_dup(userinfoList[j].last_name);
          long date = userinfoList[j].date_of_birth;
          unsigned long long hp = userinfoList[j].number_of_highest_post;
 
          user new_user = user(fname, lname, date, uuid, interests, posts, hp);
-         
+         //std::cout << fname << " " << lname << " has logged on." << std::endl;
+
          //if user is already known, delete the old record in vector and add the new one
          std::vector<user>::iterator it;
          for(it = online_users.begin(); it != online_users.end(); it++)
@@ -503,6 +507,7 @@ long tsn_system::publish_request()
  
   ReturnCode_t status = requestWriter->write(requestInstance, DDS::HANDLE_NIL);
   checkStatus(status, "requestDataWriter::write");
+  std::cout << " successfully published" << std::endl;
 
   struct timeval tp;
   gettimeofday(&tp, NULL);
@@ -571,11 +576,17 @@ void tsn_system::publish_response(TSN::request r, bool thread)
           break;
         }
       }
+
       strcpy(responseInstance.uuid, current_user.uuid);
       responseInstance.post_id = serial_num;
       responseInstance.date_of_creation = doc;
       responseInstance.post_body = DDS::string_dup(body.c_str());
       responseInstance.parent_post_id = 0;
+      if(thread)
+      {
+        char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
+        strcpy(responseInstance.parent_uuid, id);
+      }
 
       ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
       checkStatus(status, "responseDataWriter::write");
@@ -614,7 +625,7 @@ void tsn_system::load_user_data()
 
       long date;
       in >> temp;
-      std::stringstream ss (temp);
+      stringstream ss (temp);
       ss >> date;
 
       unsigned long long highest_pnum;
@@ -652,13 +663,13 @@ void tsn_system::load_user_data()
   std::string uuidstring;
   in >> uuidstring;
   strcpy(myuuid, uuidstring.c_str());
-  
+
   in >> first_name;
   in >> last_name;
 
   long date;
   in >> temp;
-  std::stringstream ss (temp);
+  stringstream ss (temp);
   ss >> date;
 
   unsigned long long highest_pnum;
@@ -746,7 +757,7 @@ user tsn_system::create_new_user(std::string path)
   std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
   while(true)
   {
-    getline(std::cin, interest);
+    getline(cin, interest);
     if(interest == "0")
     {
       break;
@@ -790,7 +801,7 @@ void tsn_system::request_all_posts(user requested_user)
   TSN::request requestInstance;
   TSN::node_request nodeReqInstance;
   strcpy(nodeReqInstance.fulfiller_uuid, requested_user.uuid);
-  
+
   nodeReqInstance.requested_posts.length(requested_user.get_highest_pnum());
   std::vector<TSN::serial_number> requested_p;
 
@@ -861,7 +872,7 @@ void tsn_system::create_post()
 
   std::string message;
   std::cout << "Enter a message for your post: " << std::endl;
-  getline(std::cin, message);
+  getline(cin, message);
 
   //getting epoch time in seconds
   struct timeval tp;
@@ -879,12 +890,12 @@ void tsn_system::create_post()
   nodeReqInstance.requested_posts.length(1);
   nodeReqInstance.requested_posts[0] = p.get_sn();
   strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-  
+
   TSN::request reqInstance;
   reqInstance.user_requests.length(1);
   reqInstance.user_requests[0] = nodeReqInstance;
   strcpy(reqInstance.uuid, current_user.uuid);
-  
+
   publish_response(reqInstance, false);
   std::cout << "Post published--" << std::endl;
   //writing the new post to .tsn file
@@ -904,7 +915,7 @@ void tsn_system::create_reply(post parent, char* parent_uuid)
 
   std::string message;
   std::cout << "Enter your reply: " << std::endl;
-  getline(std::cin, message);
+  getline(cin, message);
 
   //getting epoch time in seconds
   struct timeval tp;
@@ -952,7 +963,7 @@ void tsn_system::thread_post(post p)
   responseInstance.post_body = DDS::string_dup(p.get_body().c_str());
   responseInstance.parent_post_id = p.get_parent_sn();
   strcpy(responseInstance.parent_uuid, p.get_parent_uuid());
-  
+
   ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
   checkStatus(status, "responseDataWriter::write");
 
@@ -961,20 +972,20 @@ void tsn_system::thread_post(post p)
 void tsn_system::edit_user()
 {
   int choice = 0;
-  std::cin >> choice;
+  cin >> choice;
   
   if(choice == 1)
   {
     std::string name;
     std::cout << "Enter your new first name: ";
-    std::cin >> name;
+    cin >> name;
     current_user.first_name = name;
   }
   if(choice == 2)
   {
     std::string name;
     std::cout << "Enter your new last name: ";
-    std::cin >> name;
+    cin >> name;
     current_user.last_name = name;
   }
   if(choice == 3)
@@ -985,7 +996,7 @@ void tsn_system::edit_user()
     std::cout << "Enter your new interests to replace your existing interests, entering a newline after each interest (type 0 to stop): " << std::endl;
     while(true)
     {
-      getline(std::cin, interest);
+      getline(cin, interest);
       if(interest == "0")
       {
         break;
@@ -1115,7 +1126,7 @@ void tsn_system::publish_message()
   std::string msg_body;
   std::cout << "Enter the message to send: " << std::endl;
 
-  std::cin.ignore();
+  cin.ignore();
   getline(cin, msg_body);
 
   strcpy(pm.sender_uuid, current_user.uuid);

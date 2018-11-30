@@ -183,7 +183,8 @@ void tsn_system::response_listener()
             break;
           }
         }
-        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0))
+        char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
+        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0) && ((strcmp(responseList[j].uuid, current_user.uuid) != 0) || strcmp(id, responseList[j].parent_uuid) == 0))
         {
           char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
           strcpy(recent_uuid, responseList[j].uuid);
@@ -207,7 +208,7 @@ void tsn_system::response_listener()
               }
             }
           }
-          if(choice == "no")
+          if(choice == "none")
           {
             std::cout << "\n    Name  : " << name << std::endl;
             std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
@@ -327,7 +328,7 @@ void tsn_system::user_listener()
          unsigned long long hp = userinfoList[j].number_of_highest_post;
 
          user new_user = user(fname, lname, date, uuid, interests, posts, hp);
-         
+         //std::cout << fname << " " << lname << " has logged on." << std::endl;
          //if user is already known, delete the old record in vector and add the new one
          std::vector<user>::iterator it;
          for(it = online_users.begin(); it != online_users.end(); it++)
@@ -579,6 +580,11 @@ void tsn_system::publish_response(TSN::request r, bool thread)
       responseInstance.post_body = DDS::string_dup(body.c_str());
       responseInstance.parent_post_id = 0;
 
+      if(thread)
+      {
+        char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
+        strcpy(responseInstance.parent_uuid, id);
+      }
       ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
       checkStatus(status, "responseDataWriter::write");
       sleep(2);
