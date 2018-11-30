@@ -16,9 +16,11 @@ void view::print_help_menu()
   std::cout << "show - show information of a specific online user" << std::endl;
   std::cout << "edit - edit your personal information" << std::endl;
   std::cout << "resync - wipe all data and statistics" << std::endl;
-  std::cout << "stats - shows how many other users are known and /% of posts on TSN that you own" << std::endl;
+  std::cout << "stats - shows how many other users are known and % of posts on TSN that you own" << std::endl;
   std::cout << "message - send a private message to another online user" << std::endl;
   std::cout << "inbox - view your private message inbox" << std::endl;
+  std::cout << "reply - reply to the most recent post on your feed (starting a thread of posts)" << std::endl;
+  std::cout << "match - choose an interest to filter posts for (\"none\" to toggle off)" << std::endl;
   std::cout << "exit - exit the network" << std::endl;
 }
 

@@ -13,9 +13,6 @@
 
 class tsn_system
 {
-
-  private: 
-    string choice = "no"; 
   public:
     //stores information about the user on this instance of the program
     user current_user; 
@@ -88,6 +85,7 @@ class tsn_system
     char recent_uuid[TSN::UUID_SIZE];
     void thread_post(post p);
     void create_reply(post parent, char* parent_uuid);
+    std::string choice = "no";
 };
 
 #endif

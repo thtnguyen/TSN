@@ -155,9 +155,6 @@ void tsn_system::response_listener()
   checkHandle(responseReader.in(), "responseDataReader::_narrow");
 
   ReturnCode_t response_status = -1;
-
-  //this is to be used to see if a post is posted by user interest
-  int printed_post = 0;
   
   //while loop constantly listens for any responses sent over the network
   while(true)
@@ -167,15 +164,40 @@ void tsn_system::response_listener()
     
     for (DDS::ULong j = 0; j < responseList.length(); j++)
      {
-       if(choice == "yes")
-       {
-         //ignore the response if it's sent from the current user
-          if((strcmp(responseList[j].uuid, current_user.uuid) != 0) && responseList[j].post_id != 0)
+        std::vector<post>::iterator post_it;
+        for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++)
+        {
+          if(strcmp(post_it->get_parent_uuid(), responseList[j].uuid) == 0 && post_it->get_parent_sn() == responseList[j].post_id)
           {
-            //retrieving the corresponding name to the responder's uuid; name is initialized in case the
-            //online list was refreshed and the responding user's info hasn't been re-published yet
-            std::vector<user>::iterator it;
-            std::string name = "unable to retrieve name";
+            TSN::node_request nodeReqInstance;
+            nodeReqInstance.requested_posts.length(1);
+            nodeReqInstance.requested_posts[0] = post_it->get_sn();
+            strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
+
+            TSN::request reqInstance;
+            reqInstance.user_requests.length(1);
+            reqInstance.user_requests[0] = nodeReqInstance;
+            strcpy(reqInstance.uuid, current_user.uuid);
+
+            publish_response(reqInstance, true);
+            break;
+          }
+        }
+        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0))
+        {
+          char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
+          strcpy(recent_uuid, responseList[j].uuid);
+          std::string body = DDS::string_dup(responseList[j].post_body);
+          recent_post = post(responseList[j].post_id, body, 0, false, 0, id);
+
+          //retrieving the corresponding name to the responder's uuid; name is initialized in case the
+          //online list was refreshed and the responding user's info hasn't been re-published yet
+          std::vector<user>::iterator it;
+          std::string name = "unable to retrieve name";
+          if(strcmp(responseList[j].uuid, current_user.uuid)==0)
+            name = current_user.first_name + " " + current_user.last_name;
+          else
+          {  
             for(it = online_users.begin(); it != online_users.end(); it++)
             {
               if(strcmp(it->uuid, responseList[j].uuid) == 0)
@@ -184,115 +206,62 @@ void tsn_system::response_listener()
                 break;
               }
             }
-         //this will get us our interest post
-         string curr_interests = "nothing";
-         string curr_post = DDS::string_dup((responseList[j].post_body));
-         int interest_exists = 0;
-         unsigned k;
-         for(k = 0; k < current_user.interests.size(); k++)
-         {
-           curr_interests = current_user.interests[k];
-           interest_exists = curr_post.find(curr_interests);
-           if(interest_exists > 0)
-            {
-              //storing the most recent post in case of replies
-              char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
-              strcpy(recent_uuid, responseList[j].uuid);
-              std::string body = DDS::string_dup(responseList[j].post_body);
-              recent_post = post(responseList[j].post_id, body, 0, false, 0, id);
-
-              std::cout << "\n    Name  : " << name << std::endl;
-              std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
-              std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
-              std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
-              std::cout << "    Sorted by your interest of: " << curr_interests << std::endl;
-              printed_post++;
-            }
           }
-        }
-       }
-       else
-       {
-          std::vector<post>::iterator post_it;
-          for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++)
+          if(choice == "no")
           {
-            if(strcmp(post_it->get_parent_uuid(), responseList[j].uuid) == 0 && post_it->get_parent_sn() == responseList[j].post_id)
-            {
-              TSN::node_request nodeReqInstance;
-              nodeReqInstance.requested_posts.length(1);
-              nodeReqInstance.requested_posts[0] = post_it->get_sn();
-              strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-
-              TSN::request reqInstance;
-              reqInstance.user_requests.length(1);
-              reqInstance.user_requests[0] = nodeReqInstance;
-              strcpy(reqInstance.uuid, current_user.uuid);
-
-              publish_response(reqInstance, true);
-              break;
-            }
-          }
-          if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0))
-          {
-            char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
-            strcpy(recent_uuid, responseList[j].uuid);
-            std::string body = DDS::string_dup(responseList[j].post_body);
-            recent_post = post(responseList[j].post_id, body, 0, false, 0, id);
-
-            //retrieving the corresponding name to the responder's uuid; name is initialized in case the
-            //online list was refreshed and the responding user's info hasn't been re-published yet
-            std::vector<user>::iterator it;
-            std::string name = "unable to retrieve name";
-            if(strcmp(responseList[j].uuid, current_user.uuid)==0)
-              name = current_user.first_name + " " + current_user.last_name;
-            else
-            {  
-              for(it = online_users.begin(); it != online_users.end(); it++)
-              {
-                if(strcmp(it->uuid, responseList[j].uuid) == 0)
-                {
-                  name = it->first_name + " " + it->last_name;
-                  break;
-                }
-              }
-            }
-
             std::cout << "\n    Name  : " << name << std::endl;
             std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
             std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
             std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
           }
-          else if(strcmp(responseList[j].parent_uuid, current_user.uuid) == 0) //check if the received post is a child of the current user's posts
+          else
           {
-            for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++) //finding the post
+            string curr_post = DDS::string_dup(responseList[j].post_body);
+
+            std::string::iterator str_it;
+            for(str_it = curr_post.begin(); str_it != curr_post.end(); str_it++)
+              *str_it = tolower(*str_it); //make post all lowercase for interest matching
+
+            int interest_exists = curr_post.find(choice);
+            //std::cout << "choice is " << choice << " and interest_exists is " << interest_exists << std::endl;
+            if(interest_exists >= 0)
             {
-              if(responseList[j].parent_post_id == post_it->get_sn())
-              {
-                post_it->set_child_uuid(responseList[j].uuid); //setting approriate child post information fields
-                post_it->set_child_post(responseList[j].post_id);
-
-                if(post_it->get_parent_sn() > 0) //if this post has it's own parent, send a response out to the parent
-                  thread_post(*post_it);
-                else
-                {//sending out the post, which will start of the printing the entire thread/chain of posts
-                  TSN::node_request nodeReqInstance;
-                  nodeReqInstance.requested_posts.length(1);
-                  nodeReqInstance.requested_posts[0] = post_it->get_sn();
-                  strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-
-                  TSN::request reqInstance;
-                  reqInstance.user_requests.length(1);
-                  reqInstance.user_requests[0] = nodeReqInstance;
-                  strcpy(reqInstance.uuid, current_user.uuid);
-
-                  publish_response(reqInstance, true);
-                }
-                break;
-              }
+              std::cout << "\n    Name  : " << name << std::endl;
+              std::cout << "    Post ID : " << responseList[j].post_id << std::endl;
+              std::cout << "    Date of Creation: " << responseList[j].date_of_creation << std::endl;
+              std::cout << "    Post Body: " << responseList[j].post_body << std::endl;
             }
           }
+        }
+        else if(strcmp(responseList[j].parent_uuid, current_user.uuid) == 0) //check if the received post is a child of the current user's posts
+        {
+          for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++) //finding the post
+          {
+            if(responseList[j].parent_post_id == post_it->get_sn())
+            {
+              post_it->set_child_uuid(responseList[j].uuid); //setting approriate child post information fields
+              post_it->set_child_post(responseList[j].post_id);
 
-       }
+              if(post_it->get_parent_sn() > 0) //if this post has it's own parent, send a response out to the parent
+                thread_post(*post_it);
+              else
+              {//sending out the post, which will start of the printing the entire thread/chain of posts
+                TSN::node_request nodeReqInstance;
+                nodeReqInstance.requested_posts.length(1);
+                nodeReqInstance.requested_posts[0] = post_it->get_sn();
+                strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
+
+                TSN::request reqInstance;
+                reqInstance.user_requests.length(1);
+                reqInstance.user_requests[0] = nodeReqInstance;
+                strcpy(reqInstance.uuid, current_user.uuid);
+
+                publish_response(reqInstance, true);
+              }
+              break;
+            }
+          }
+        }
 		 }
     response_status = responseReader->return_loan(responseList, infoSeq);
     checkStatus(response_status, "response_informationDataReader::return_loan");

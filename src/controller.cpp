@@ -70,6 +70,18 @@ void controller::execute_cmd()
     {
       sys.create_reply(sys.recent_post, sys.recent_uuid);
     }
+    if(state == "match")
+    {
+      std::string::iterator str_it;
+      std::string match;
+      std::cout << "Enter which interest you'd like to match posts to: ";
+      getline(cin, match);
+
+      for(str_it = match.begin(); str_it != match.end(); str_it++)
+        *str_it = tolower(*str_it);
+      
+      sys.choice = match;
+    }
     if(state == "help")
     {
       viewer.print_help_menu();
