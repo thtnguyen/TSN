@@ -9,6 +9,7 @@ post::post()
     char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
     strcpy(this->parent_uuid, id);
     this->parent_post_id = 0;
+    child_post_id = 0;
 }
 post::post(TSN::serial_number sn, std::string body, long doc, bool thread, TSN::serial_number parent_post_id, char* parent_uuid)
 {
@@ -19,6 +20,7 @@ post::post(TSN::serial_number sn, std::string body, long doc, bool thread, TSN::
     {
         strcpy(this->parent_uuid, parent_uuid);
         this->parent_post_id = parent_post_id;
+        child_post_id = 0;
     }
     else
     {
@@ -53,4 +55,8 @@ void post::set_child_uuid(char* uuid)
 void post::set_child_post(TSN::serial_number post_id)
 {
     this->child_post_id = post_id;
+}
+TSN::serial_number post::get_child_sn()
+{
+    return this->child_post_id;
 }

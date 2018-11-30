@@ -26,6 +26,7 @@ class post
     TSN::serial_number get_sn(); //return the post's serial num
 
     TSN::serial_number get_parent_sn();
+    TSN::serial_number get_child_sn();
     char* get_parent_uuid();
     void set_child_uuid(char* uuid);
     void set_child_post(TSN::serial_number post_id);

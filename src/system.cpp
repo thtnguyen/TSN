@@ -570,7 +570,7 @@ void tsn_system::publish_response(TSN::request r, bool thread)
           serial_num = it->get_sn();
           doc = it->get_doc();
 
-          if(thread)
+          if(thread && it->get_child_sn() > 0)
             body += "\n\t\t|\n\t\t|";
 
           break;
