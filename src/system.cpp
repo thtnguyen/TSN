@@ -173,12 +173,12 @@ void tsn_system::response_listener()
             nodeReqInstance.requested_posts.length(1);
             nodeReqInstance.requested_posts[0] = post_it->get_sn();
             strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-
+            
             TSN::request reqInstance;
             reqInstance.user_requests.length(1);
             reqInstance.user_requests[0] = nodeReqInstance;
             strcpy(reqInstance.uuid, current_user.uuid);
-
+            
             publish_response(reqInstance, true);
             break;
           }
@@ -216,14 +216,13 @@ void tsn_system::response_listener()
           }
           else
           {
-            string curr_post = DDS::string_dup(responseList[j].post_body);
+            std::string curr_post = DDS::string_dup(responseList[j].post_body);
 
             std::string::iterator str_it;
             for(str_it = curr_post.begin(); str_it != curr_post.end(); str_it++)
               *str_it = tolower(*str_it); //make post all lowercase for interest matching
 
             int interest_exists = curr_post.find(choice);
-            //std::cout << "choice is " << choice << " and interest_exists is " << interest_exists << std::endl;
             if(interest_exists >= 0)
             {
               std::cout << "\n    Name  : " << name << std::endl;
@@ -250,12 +249,12 @@ void tsn_system::response_listener()
                 nodeReqInstance.requested_posts.length(1);
                 nodeReqInstance.requested_posts[0] = post_it->get_sn();
                 strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-
+                
                 TSN::request reqInstance;
                 reqInstance.user_requests.length(1);
                 reqInstance.user_requests[0] = nodeReqInstance;
                 strcpy(reqInstance.uuid, current_user.uuid);
-
+                
                 publish_response(reqInstance, true);
               }
               break;
@@ -311,7 +310,7 @@ void tsn_system::user_listener()
        {
          char uuid[TSN::UUID_SIZE];
          strcpy(uuid, userinfoList[j].uuid);
-
+         
          std::vector<std::string> interests;
          std::string interest;
          for(unsigned int i = 0; i < userinfoList[j].interests.length(); i++)
@@ -321,8 +320,8 @@ void tsn_system::user_listener()
          }
          std::vector<post> posts;
 
-         string fname = DDS::string_dup(userinfoList[j].first_name);
-         string lname = DDS::string_dup(userinfoList[j].last_name);
+         std::string fname = DDS::string_dup(userinfoList[j].first_name);
+         std::string lname = DDS::string_dup(userinfoList[j].last_name);
          long date = userinfoList[j].date_of_birth;
          unsigned long long hp = userinfoList[j].number_of_highest_post;
 
@@ -615,7 +614,7 @@ void tsn_system::load_user_data()
 
       long date;
       in >> temp;
-      stringstream ss (temp);
+      std::stringstream ss (temp);
       ss >> date;
 
       unsigned long long highest_pnum;
@@ -653,13 +652,13 @@ void tsn_system::load_user_data()
   std::string uuidstring;
   in >> uuidstring;
   strcpy(myuuid, uuidstring.c_str());
-
+  
   in >> first_name;
   in >> last_name;
 
   long date;
   in >> temp;
-  stringstream ss (temp);
+  std::stringstream ss (temp);
   ss >> date;
 
   unsigned long long highest_pnum;
@@ -747,7 +746,7 @@ user tsn_system::create_new_user(std::string path)
   std::cout << "Enter your interests, entering a newline after each interest (type 0 to stop): " << std::endl;
   while(true)
   {
-    getline(cin, interest);
+    getline(std::cin, interest);
     if(interest == "0")
     {
       break;
@@ -791,7 +790,7 @@ void tsn_system::request_all_posts(user requested_user)
   TSN::request requestInstance;
   TSN::node_request nodeReqInstance;
   strcpy(nodeReqInstance.fulfiller_uuid, requested_user.uuid);
-
+  
   nodeReqInstance.requested_posts.length(requested_user.get_highest_pnum());
   std::vector<TSN::serial_number> requested_p;
 
@@ -862,7 +861,7 @@ void tsn_system::create_post()
 
   std::string message;
   std::cout << "Enter a message for your post: " << std::endl;
-  getline(cin, message);
+  getline(std::cin, message);
 
   //getting epoch time in seconds
   struct timeval tp;
@@ -880,12 +879,12 @@ void tsn_system::create_post()
   nodeReqInstance.requested_posts.length(1);
   nodeReqInstance.requested_posts[0] = p.get_sn();
   strcpy(nodeReqInstance.fulfiller_uuid, current_user.uuid);
-
+  
   TSN::request reqInstance;
   reqInstance.user_requests.length(1);
   reqInstance.user_requests[0] = nodeReqInstance;
   strcpy(reqInstance.uuid, current_user.uuid);
-
+  
   publish_response(reqInstance, false);
   std::cout << "Post published--" << std::endl;
   //writing the new post to .tsn file
@@ -905,7 +904,7 @@ void tsn_system::create_reply(post parent, char* parent_uuid)
 
   std::string message;
   std::cout << "Enter your reply: " << std::endl;
-  getline(cin, message);
+  getline(std::cin, message);
 
   //getting epoch time in seconds
   struct timeval tp;
@@ -953,7 +952,7 @@ void tsn_system::thread_post(post p)
   responseInstance.post_body = DDS::string_dup(p.get_body().c_str());
   responseInstance.parent_post_id = p.get_parent_sn();
   strcpy(responseInstance.parent_uuid, p.get_parent_uuid());
-
+  
   ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
   checkStatus(status, "responseDataWriter::write");
 
@@ -962,20 +961,20 @@ void tsn_system::thread_post(post p)
 void tsn_system::edit_user()
 {
   int choice = 0;
-  cin >> choice;
+  std::cin >> choice;
   
   if(choice == 1)
   {
     std::string name;
     std::cout << "Enter your new first name: ";
-    cin >> name;
+    std::cin >> name;
     current_user.first_name = name;
   }
   if(choice == 2)
   {
     std::string name;
     std::cout << "Enter your new last name: ";
-    cin >> name;
+    std::cin >> name;
     current_user.last_name = name;
   }
   if(choice == 3)
@@ -986,7 +985,7 @@ void tsn_system::edit_user()
     std::cout << "Enter your new interests to replace your existing interests, entering a newline after each interest (type 0 to stop): " << std::endl;
     while(true)
     {
-      getline(cin, interest);
+      getline(std::cin, interest);
       if(interest == "0")
       {
         break;
@@ -1116,7 +1115,7 @@ void tsn_system::publish_message()
   std::string msg_body;
   std::cout << "Enter the message to send: " << std::endl;
 
-  cin.ignore();
+  std::cin.ignore();
   getline(cin, msg_body);
 
   strcpy(pm.sender_uuid, current_user.uuid);

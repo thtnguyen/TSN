@@ -7,7 +7,7 @@ void controller::execute_cmd()
     string state = " ";
     std::cout << ">> ";
     std::cin >> state;
-    cin.ignore();
+    std::cin.ignore();
 
     if(state == "exit") //exit
     {

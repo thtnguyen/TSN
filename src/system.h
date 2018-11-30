@@ -26,7 +26,15 @@ class tsn_system
     //manager object to create data publishers/subscribers
     DDSEntityManager manager;
 
+    //vector to store all received private messages since login
     std::vector<message> private_messages;
+
+    //objects to store the most recent post received which can be replied to
+    post recent_post;
+    char recent_uuid[TSN::UUID_SIZE];
+
+    //interest keyword string that is used for the 'highlight posts' feature
+    std::string choice = "none";
 
     //constructor, takes a user object as a parameter to initialize current_user
     tsn_system(user &cu);
@@ -77,15 +85,13 @@ class tsn_system
     //prompts the user to either change their first name, last name, or interests
     void edit_user();
 
+    //manages sending and receiving pms
     void message_listener();
-
     void publish_message();
 
-    post recent_post;
-    char recent_uuid[TSN::UUID_SIZE];
+    //methods that manage post threading
     void thread_post(post p);
     void create_reply(post parent, char* parent_uuid);
-    std::string choice = "none";
 };
 
 #endif

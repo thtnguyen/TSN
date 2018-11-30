@@ -8,7 +8,6 @@ class view
 {
   public:
   tsn_system& sys; //reference to a tsn_system instance
-
   view(tsn_system& s) : sys(s) {}; //constructor
   void print_start_menu();
   void print_help_menu();
