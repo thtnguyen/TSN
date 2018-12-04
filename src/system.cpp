@@ -184,7 +184,7 @@ void tsn_system::response_listener()
           }
         }
         char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
-        if(responseList[j].post_id != 0 && (responseList[j].parent_post_id == 0) && ((strcmp(responseList[j].uuid, current_user.uuid) != 0) || strcmp(id, responseList[j].parent_uuid) == 0))
+        if(responseList[j].post_id != 0 && (responseList[j].parent_post.post_id == 0) && ((strcmp(responseList[j].uuid, current_user.uuid) != 0) || strcmp(id, responseList[j].parent_post.owner_uuid) == 0))
         {
           char id[TSN::UUID_SIZE] = "000000000000000000000000000000000000";
           strcpy(recent_uuid, responseList[j].uuid);
@@ -224,7 +224,6 @@ void tsn_system::response_listener()
               *str_it = tolower(*str_it); //make post all lowercase for interest matching
 
             int interest_exists = curr_post.find(choice);
-            //std::cout << "choice is " << choice << " and interest_exists is " << interest_exists << std::endl;
             if(interest_exists >= 0)
             {
               std::cout << "\n    Name  : " << name << std::endl;
@@ -234,11 +233,11 @@ void tsn_system::response_listener()
             }
           }
         }
-        else if(strcmp(responseList[j].parent_uuid, current_user.uuid) == 0) //check if the received post is a child of the current user's posts
+        else if(strcmp(responseList[j].parent_post.owner_uuid, current_user.uuid) == 0) //check if the received post is a child of the current user's posts
         {
           for(post_it = current_user.posts.begin(); post_it != current_user.posts.end(); post_it++) //finding the post
           {
-            if(responseList[j].parent_post_id == post_it->get_sn())
+            if(responseList[j].parent_post.post_id == post_it->get_sn())
             {
               post_it->set_child_uuid(responseList[j].uuid); //setting approriate child post information fields
               post_it->set_child_post(responseList[j].post_id);
@@ -581,11 +580,11 @@ void tsn_system::publish_response(TSN::request r, bool thread)
       responseInstance.post_id = serial_num;
       responseInstance.date_of_creation = doc;
       responseInstance.post_body = DDS::string_dup(body.c_str());
-      responseInstance.parent_post_id = 0;
+      responseInstance.parent_post.post_id = 0;
       if(thread)
       {
         char id[TSN::UUID_SIZE] = "000000000000000000000000000000000001";
-        strcpy(responseInstance.parent_uuid, id);
+        strcpy(responseInstance.parent_post.owner_uuid, id);
       }
 
       ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
@@ -961,8 +960,8 @@ void tsn_system::thread_post(post p)
   responseInstance.post_id = p.get_sn();
   responseInstance.date_of_creation = p.get_doc();
   responseInstance.post_body = DDS::string_dup(p.get_body().c_str());
-  responseInstance.parent_post_id = p.get_parent_sn();
-  strcpy(responseInstance.parent_uuid, p.get_parent_uuid());
+  responseInstance.parent_post.post_id = p.get_parent_sn();
+  strcpy(responseInstance.parent_post.owner_uuid, p.get_parent_uuid());
 
   ReturnCode_t status = responseWriter->write(responseInstance, DDS::HANDLE_NIL);
   checkStatus(status, "responseDataWriter::write");
